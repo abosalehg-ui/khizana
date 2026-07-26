@@ -1,0 +1,70 @@
+<resources>
+    <string name="app_name">خِزانة</string>
+    <string name="theme_mode_label">المظهر: %1$s</string>
+    <string name="theme_mode_system">تلقائي</string>
+    <string name="theme_mode_light">فاتح</string>
+    <string name="theme_mode_dark">غامق</string>
+
+    <string name="permission_title">الوصول لملفاتك</string>
+    <string name="permission_rationale">تحتاج خِزانة إذن «الوصول لكل الملفات» لغرض واحد: العثور على ملفات كتبك (PDF وCBZ) أينما كانت في جهازك وفتحها مباشرة. التطبيق لا يملك إذن الإنترنت أصلاً، فلا يخرج أي شيء من جهازك. ملاحظة: نظام أندرويد نفسه يمنع الوصول إلى مجلدي Android/data وAndroid/obb — لا يستطيع أي تطبيق قراءتهما.</string>
+    <string name="permission_grant">امنح الإذن</string>
+
+    <string name="scan_now">افحص المكتبة</string>
+    <string name="scanning_progress">جاري الفحص… %1$d / %2$d</string>
+    <string name="scan_report">تم فحص %1$d ملفاً: %2$d جديد، %3$d محدَّث، %4$d مفقود</string>
+    <string name="books_count">الكتب: %1$d</string>
+    <string name="empty_library">لا كتب بعد. اضغط «افحص المكتبة» للعثور على ملفات PDF وCBZ في جهازك.</string>
+    <string name="pages_count">%1$d صفحة</string>
+    <string name="shelf_new">جديد ⭐</string>
+    <string name="add_topic">رف جديد</string>
+    <string name="topic_name_hint">اسم الرف</string>
+    <string name="action_add">إضافة</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="empty_shelf_hint">اسحب كتاباً إلى هنا</string>
+    <string name="action_back">رجوع</string>
+    <string name="reader_protected">هذا الكتاب محمي بكلمة مرور ولا يمكن فتحه بعد.</string>
+    <string name="reader_corrupt">تعذّر فتح هذا الملف — يبدو تالفاً.</string>
+    <string name="reader_missing">ملف الكتاب غير موجود في التخزين.</string>
+    <string name="reader_page_failed">تعذّر عرض هذه الصفحة.</string>
+
+    <string name="hidden_books">الكتب المخفية</string>
+    <string name="no_hidden_books">لا كتب مخفية.</string>
+    <string name="action_hide">إخفاء</string>
+    <string name="action_unhide">إظهار</string>
+    <string name="action_save">حفظ</string>
+    <string name="action_delete">حذف</string>
+    <string name="book_options">خيارات الكتاب</string>
+    <string name="shelf_options">خيارات الرف</string>
+    <string name="rename_shelf">إعادة تسمية الرف</string>
+    <string name="delete_shelf">حذف الرف</string>
+    <string name="delete_shelf_message">ستعود كتب هذا الرف إلى رف «جديد ⭐». لن يُحذف أي كتاب.</string>
+    <string name="manage_tags">الوسوم</string>
+    <string name="tags_dialog_title">وسوم الكتاب</string>
+    <string name="new_tag_hint">وسم جديد</string>
+    <string name="filter_all">الكل</string>
+
+    <string name="settings">الإعدادات</string>
+    <string name="action_change">تغيير</string>
+    <string name="action_open">فتح</string>
+    <string name="deep_scan_title">البحث العميق</string>
+    <string name="deep_scan_desc">يمسح كل التخزين بدل فهرس الوسائط. أبطأ، لكنه يجد ملفات فاتها الفهرس.</string>
+    <string name="excluded_folders_title">المجلدات المستبعدة</string>
+    <string name="excluded_folders_empty">لا مجلدات مستبعدة. الفحص يشمل كل التخزين.</string>
+    <string name="add_folder">إضافة مجلد</string>
+    <string name="folder_not_supported">لا يمكن استبعاد هذا النوع من المجلدات.</string>
+    <string name="backup_title">النسخ الاحتياطي والاستعادة</string>
+    <string name="backup_desc">يحفظ أرففك ووسومك ومواضع القراءة والإخفاء في ملف JSON. الاستعادة تعيد ربط كل شيء بالبصمة — حتى على جهاز جديد بعد الفحص.</string>
+    <string name="backup_action">نسخ احتياطي</string>
+    <string name="restore_action">استعادة</string>
+    <string name="backup_saved">تم حفظ النسخة الاحتياطية.</string>
+    <string name="backup_failed">فشل النسخ الاحتياطي.</string>
+    <string name="restore_done">تمت الاستعادة. شغّل الفحص لإعادة ربط الملفات.</string>
+    <string name="restore_failed">فشلت الاستعادة — هل هذا ملف نسخة احتياطية من خِزانة؟</string>
+    <string name="delete_book">حذف من الجهاز</string>
+    <string name="delete_book_message">سيُحذف «%1$s» نهائياً من جهازك مع بيانات قراءته. لا يمكن التراجع عن هذا.</string>
+    <string name="delete_book_failed">تعذّر حذف الملف.</string>
+    <string name="continue_reading">أكمل القراءة</string>
+    <string name="search_hint">ابحث في مكتبتك…</string>
+    <string name="status_protected">محمي بكلمة مرور</string>
+    <string name="status_corrupt">ملف تالف</string>
+</resources>

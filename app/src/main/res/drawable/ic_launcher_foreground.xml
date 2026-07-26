@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Cabinet with two golden shelves of books, hand-converted from
+     art/khizana-icon.svg and scaled into the 66dp adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Cabinet cavity -->
+    <path android:pathData="M36.19,78.73 L36.19,49.96 Q36.19,38.18 54,30.78 Q71.81,38.18 71.81,49.96 L71.81,78.73 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54" android:startY="30.78"
+                android:endX="54" android:endY="78.73">
+                <item android:offset="0" android:color="#FF2A1C11" />
+                <item android:offset="1" android:color="#FF4A3220" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Top shelf books -->
+    <path android:pathData="M38.93,48.04 h3.01 v7.4 h-3.01 Z" android:fillColor="#F5EBDA" />
+    <path android:pathData="M42.49,47.22 h2.47 v8.22 h-2.47 Z" android:fillColor="#C9A227" />
+    <path android:pathData="M45.51,48.59 h3.56 v6.85 h-3.56 Z" android:fillColor="#E8D8B4" />
+    <path android:pathData="M49.62,47.49 h2.74 v7.95 h-2.74 Z" android:fillColor="#B4762A" />
+    <path android:pathData="M52.9,48.31 h3.29 v7.12 h-3.29 Z" android:fillColor="#F5EBDA" />
+    <path android:pathData="M56.74,46.94 h2.47 v8.49 h-2.47 Z" android:fillColor="#E3C567" />
+    <group
+        android:rotation="-13"
+        android:pivotX="63.04"
+        android:pivotY="55.44">
+        <path android:pathData="M60.3,48.04 h2.74 v7.4 h-2.74 Z" android:fillColor="#D8C49A" />
+    </group>
+    <path android:pathData="M64.96,48.59 h3.29 v6.85 h-3.29 Z" android:fillColor="#B4762A" />
+    <path android:pathData="M68.8,47.77 h2.47 v7.67 h-2.47 Z" android:fillColor="#F5EBDA" />
+
+    <!-- Top shelf plank -->
+    <path android:pathData="M35.37,55.44 h37.26 v1.78 h-37.26 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54" android:startY="55.44"
+                android:endX="54" android:endY="57.22">
+                <item android:offset="0" android:color="#FFE3C567" />
+                <item android:offset="0.35" android:color="#FFC9A227" />
+                <item android:offset="1" android:color="#FF8A6B14" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M35.37,55.44 h37.26 v0.41 h-37.26 Z" android:fillColor="#BFF0DA9A" />
+
+    <!-- Bottom shelf books -->
+    <path android:pathData="M38.93,62.56 h2.74 v7.12 h-2.74 Z" android:fillColor="#E3C567" />
+    <path android:pathData="M42.22,63.38 h3.56 v6.3 h-3.56 Z" android:fillColor="#F5EBDA" />
+    <path android:pathData="M46.33,62.29 h2.47 v7.4 h-2.47 Z" android:fillColor="#B4762A" />
+    <path android:pathData="M49.34,63.11 h3.01 v6.58 h-3.01 Z" android:fillColor="#E8D8B4" />
+    <path android:pathData="M52.9,62.01 h3.29 v7.67 h-3.29 Z" android:fillColor="#C9A227" />
+    <path android:pathData="M56.74,63.38 h2.47 v6.3 h-2.47 Z" android:fillColor="#F5EBDA" />
+    <path android:pathData="M59.75,62.56 h3.56 v7.12 h-3.56 Z" android:fillColor="#D8C49A" />
+    <path android:pathData="M63.86,63.11 h2.74 v6.58 h-2.74 Z" android:fillColor="#B4762A" />
+    <path android:pathData="M67.15,62.01 h3.01 v7.67 h-3.01 Z" android:fillColor="#F5EBDA" />
+
+    <!-- Bottom shelf plank -->
+    <path android:pathData="M35.37,69.69 h37.26 v1.78 h-37.26 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54" android:startY="69.69"
+                android:endX="54" android:endY="71.47">
+                <item android:offset="0" android:color="#FFE3C567" />
+                <item android:offset="0.35" android:color="#FFC9A227" />
+                <item android:offset="1" android:color="#FF8A6B14" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M35.37,69.69 h37.26 v0.41 h-37.26 Z" android:fillColor="#BFF0DA9A" />
+
+    <!-- Golden arch frame -->
+    <path
+        android:pathData="M36.19,78.73 L36.19,49.96 Q36.19,38.18 54,30.78 Q71.81,38.18 71.81,49.96 L71.81,78.73"
+        android:strokeWidth="1.78"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="54" android:startY="30"
+                android:endX="54" android:endY="79">
+                <item android:offset="0" android:color="#FFE3C567" />
+                <item android:offset="0.5" android:color="#FFC9A227" />
+                <item android:offset="1" android:color="#FF9C7A18" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Cabinet base -->
+    <path android:pathData="M34.27,77.91 h39.46 v2.47 h-39.46 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="54" android:startY="77.91"
+                android:endX="54" android:endY="80.38">
+                <item android:offset="0" android:color="#FFE3C567" />
+                <item android:offset="0.35" android:color="#FFC9A227" />
+                <item android:offset="1" android:color="#FF8A6B14" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M34.27,77.91 h39.46 v0.55 h-39.46 Z" android:fillColor="#99F0DA9A" />
+
+    <!-- Finial -->
+    <path
+        android:pathData="M51.67,28.86 a2.33,2.33 0 1,0 4.66,0 a2.33,2.33 0 1,0 -4.66,0 Z"
+        android:fillColor="#2EE3C567" />
+    <path
+        android:pathData="M52.75,28.86 a1.25,1.25 0 1,0 2.5,0 a1.25,1.25 0 1,0 -2.5,0 Z"
+        android:fillColor="#C9A227" />
+</vector>

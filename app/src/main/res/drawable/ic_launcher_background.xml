@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Warm wood gradient with subtle grain, from art/khizana-icon.svg -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0"
+                android:startY="0"
+                android:endX="37.8"
+                android:endY="108">
+                <item android:offset="0" android:color="#FF7A4E28" />
+                <item android:offset="0.45" android:color="#FF6B4423" />
+                <item android:offset="1" android:color="#FF3E2A1B" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Wood grain: sparse translucent vertical lines. -->
+    <path
+        android:pathData="M6,0 V108 M20,0 V108 M34,0 V108 M48,0 V108 M62,0 V108 M76,0 V108 M90,0 V108 M104,0 V108"
+        android:strokeColor="#12000000"
+        android:strokeWidth="0.45" />
+    <path
+        android:pathData="M13,0 V108 M27,0 V108 M41,0 V108 M55,0 V108 M69,0 V108 M83,0 V108 M97,0 V108"
+        android:strokeColor="#0AFFFFFF"
+        android:strokeWidth="0.25" />
+</vector>
