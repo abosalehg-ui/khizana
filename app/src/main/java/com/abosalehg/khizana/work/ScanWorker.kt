@@ -3,6 +3,9 @@ package com.abosalehg.khizana.work
 import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.abosalehg.khizana.domain.repo.LibraryRepository
@@ -26,6 +29,12 @@ class ScanWorker @AssistedInject constructor(
             val report = repository.rescan(deep = deep) { processed, total ->
                 setProgress(workDataOf(KEY_PROCESSED to processed, KEY_TOTAL to total))
             }
+            // Newly discovered books need covers; chain the generator.
+            WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                CoverWorker.UNIQUE_NAME,
+                ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<CoverWorker>().build()
+            )
             Result.success(
                 workDataOf(
                     KEY_SCANNED to report.scanned,

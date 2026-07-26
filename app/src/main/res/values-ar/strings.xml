@@ -14,4 +14,7 @@
     <string name="scan_report">تم فحص %1$d ملفاً: %2$d جديد، %3$d محدَّث، %4$d مفقود</string>
     <string name="books_count">الكتب: %1$d</string>
     <string name="empty_library">لا كتب بعد. اضغط «افحص المكتبة» للعثور على ملفات PDF وCBZ في جهازك.</string>
+    <string name="pages_count">%1$d صفحة</string>
+    <string name="status_protected">محمي بكلمة مرور</string>
+    <string name="status_corrupt">ملف تالف</string>
 </resources>

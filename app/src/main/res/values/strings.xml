@@ -14,4 +14,7 @@
     <string name="scan_report">Scanned %1$d files: %2$d new, %3$d updated, %4$d missing</string>
     <string name="books_count">Books: %1$d</string>
     <string name="empty_library">No books yet. Tap “Scan library” to find the PDF and CBZ files on your device.</string>
+    <string name="pages_count">%1$d pages</string>
+    <string name="status_protected">Password-protected</string>
+    <string name="status_corrupt">Damaged file</string>
 </resources>

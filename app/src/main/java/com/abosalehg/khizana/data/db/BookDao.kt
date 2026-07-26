@@ -35,4 +35,17 @@ interface BookDao {
     /** Books whose files disappeared. Rows are never deleted — data must survive. */
     @Query("UPDATE books SET status = 'MISSING' WHERE id IN (:ids)")
     suspend fun markMissing(ids: List<String>)
+
+    /** Candidates for cover generation, including retries after a failed attempt is reset. */
+    @Query("SELECT * FROM books WHERE status = 'OK' AND coverPath IS NULL AND coverFailed = 0")
+    suspend fun getNeedingCovers(): List<BookEntity>
+
+    @Query("UPDATE books SET coverPath = :coverPath, pageCount = :pageCount, coverFailed = 0 WHERE id = :id")
+    suspend fun setCover(id: String, coverPath: String, pageCount: Int)
+
+    @Query("UPDATE books SET coverFailed = 1 WHERE id = :id")
+    suspend fun setCoverFailed(id: String)
+
+    @Query("UPDATE books SET status = :status WHERE id = :id")
+    suspend fun setStatus(id: String, status: String)
 }
