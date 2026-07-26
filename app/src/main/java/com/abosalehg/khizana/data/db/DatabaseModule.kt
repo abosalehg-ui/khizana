@@ -27,4 +27,7 @@ object DatabaseModule {
 
     @Provides
     fun provideExcludedFolderDao(db: KhizanaDatabase): ExcludedFolderDao = db.excludedFolderDao()
+
+    @Provides
+    fun provideTagDao(db: KhizanaDatabase): TagDao = db.tagDao()
 }

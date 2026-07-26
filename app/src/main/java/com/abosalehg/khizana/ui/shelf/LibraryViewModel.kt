@@ -39,9 +39,24 @@ class LibraryViewModel @Inject constructor(
 
     private val workManager = WorkManager.getInstance(context)
 
+    /** Selected tag filter; null shows everything. */
+    private val _selectedTagId = MutableStateFlow<Long?>(null)
+    val selectedTagId: StateFlow<Long?> = _selectedTagId
+
+    val tags = repository.tags
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val shelves: StateFlow<List<Shelf>> =
-        combine(repository.topics, repository.visibleBooks) { topics, books ->
-            buildShelves(topics, books)
+        combine(
+            repository.topics,
+            repository.visibleBooks,
+            repository.bookTagRefs,
+            _selectedTagId
+        ) { topics, books, refs, tagId ->
+            val filterIds = tagId?.let { id ->
+                refs.filter { it.tagId == id }.mapTo(HashSet()) { it.bookId }
+            }
+            filterShelvesByBookIds(buildShelves(topics, books), filterIds)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _permissionGranted = MutableStateFlow(StoragePermission.isGranted(context))
@@ -71,6 +86,29 @@ class LibraryViewModel @Inject constructor(
 
     fun moveBook(bookId: String, topicId: Long?) {
         viewModelScope.launch { repository.moveBookToTopic(bookId, topicId) }
+    }
+
+    fun renameTopic(topicId: Long, name: String) {
+        viewModelScope.launch { repository.renameTopic(topicId, name) }
+    }
+
+    fun deleteTopic(topicId: Long) {
+        viewModelScope.launch { repository.deleteTopic(topicId) }
+    }
+
+    fun hideBook(bookId: String) {
+        viewModelScope.launch { repository.setBookHidden(bookId, true) }
+    }
+
+    fun selectTag(tagId: Long?) {
+        _selectedTagId.value = tagId
+    }
+
+    /** Loads the book's current tag ids for the tag dialog. */
+    suspend fun tagIdsForBook(bookId: String): Set<Long> = repository.tagIdsForBook(bookId)
+
+    fun saveTags(bookId: String, tagIds: Set<Long>, newTagNames: List<String>) {
+        viewModelScope.launch { repository.setTagsForBook(bookId, tagIds, newTagNames) }
     }
 
     private fun WorkInfo?.toUiState(): ScanUiState {

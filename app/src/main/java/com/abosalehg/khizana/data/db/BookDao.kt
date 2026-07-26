@@ -60,4 +60,14 @@ interface BookDao {
 
     @Query("UPDATE books SET pageCount = :pageCount WHERE id = :id")
     suspend fun updatePageCount(id: String, pageCount: Int)
+
+    @Query("UPDATE books SET isHidden = :hidden WHERE id = :id")
+    suspend fun setHidden(id: String, hidden: Boolean)
+
+    @Query("SELECT * FROM books WHERE isHidden = 1 AND status != 'MISSING' ORDER BY title ASC")
+    fun observeHidden(): Flow<List<BookEntity>>
+
+    /** On shelf deletion its books return to the New shelf. */
+    @Query("UPDATE books SET topicId = NULL WHERE topicId = :topicId")
+    suspend fun clearTopic(topicId: Long)
 }

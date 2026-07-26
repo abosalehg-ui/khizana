@@ -26,6 +26,22 @@
     <string name="reader_corrupt">تعذّر فتح هذا الملف — يبدو تالفاً.</string>
     <string name="reader_missing">ملف الكتاب غير موجود في التخزين.</string>
     <string name="reader_page_failed">تعذّر عرض هذه الصفحة.</string>
+
+    <string name="hidden_books">الكتب المخفية</string>
+    <string name="no_hidden_books">لا كتب مخفية.</string>
+    <string name="action_hide">إخفاء</string>
+    <string name="action_unhide">إظهار</string>
+    <string name="action_save">حفظ</string>
+    <string name="action_delete">حذف</string>
+    <string name="book_options">خيارات الكتاب</string>
+    <string name="shelf_options">خيارات الرف</string>
+    <string name="rename_shelf">إعادة تسمية الرف</string>
+    <string name="delete_shelf">حذف الرف</string>
+    <string name="delete_shelf_message">ستعود كتب هذا الرف إلى رف «جديد ⭐». لن يُحذف أي كتاب.</string>
+    <string name="manage_tags">الوسوم</string>
+    <string name="tags_dialog_title">وسوم الكتاب</string>
+    <string name="new_tag_hint">وسم جديد</string>
+    <string name="filter_all">الكل</string>
     <string name="status_protected">محمي بكلمة مرور</string>
     <string name="status_corrupt">ملف تالف</string>
 </resources>
