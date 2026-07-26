@@ -16,12 +16,19 @@ Current coverage (grows with each milestone):
 | CBZ cover entry selection, image detection, downsample math | `CbzCoverTest` | M2 |
 | Shelf grouping: New-shelf-first, topic order, orphan fallback | `ShelvesTest` | M3 |
 | Progress math (pageCount 0/1, clamping) & direction resolution | `ReadingTest` | M4 |
+| Spread building (cover alone, odd/even tails) & page↔spread mapping | `SpreadsTest` | M5 |
 | CBZ reading order (case-insensitive alphabetical) | `CbzCoverTest` | M4 |
 
-Planned (from the project spec): `NaturalOrderComparator` (M8),
-spread mapping RTL/LTR (M5).
+Planned (from the project spec): `NaturalOrderComparator` (M8).
 
 ## Manual checklist
+
+### M5
+- [ ] Rotating to landscape shows two facing pages; the cover stays alone.
+- [ ] In an RTL book, the lower page number is on the right of the spread; in LTR, on the left.
+- [ ] Rotating back and forth keeps the current page.
+- [ ] Pinch zooms up to 5x; one finger pans while zoomed; swiping pages still works at 1x.
+- [ ] Double-tap zooms in; double-tap again restores; turning the page resets zoom.
 
 ### M4
 - [ ] Tapping a book opens it full-screen; swiping turns pages.

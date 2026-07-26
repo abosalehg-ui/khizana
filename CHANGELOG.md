@@ -6,6 +6,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### M5 — Landscape spreads & pinch zoom
+
+- Landscape now shows two-page spreads like an open book: the cover always alone, then (1,2), (3,4)…, with a trailing odd page alone. Pure `buildSpreads`/`spreadIndexOfPage` mapping, fully unit-tested.
+- RTL correctness for free: the spread Row places the lower page at the layout start, which is the right side under the RTL pager — the same model reads correctly in both directions.
+- Pinch zoom 1x–5x with clamped one-finger panning while zoomed; double-tap toggles 1x/2.5x; zoom resets on page turn. Single-finger swipes still page normally at 1x — the zoom gesture handler only consumes events while pinching or zoomed.
+- Rotation keeps the exact reading position: the ViewModel tracks the last settled page and both pager modes reopen from it (persisted `locator` unchanged).
+
 ### M4 — The reader: PDF/CBZ pages, direction & saved position
 
 - Tapping a book opens the full-screen reader (Navigation Compose: `library` → `reader/{bookId}`).

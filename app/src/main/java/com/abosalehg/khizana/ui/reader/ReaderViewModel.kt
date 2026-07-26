@@ -57,6 +57,10 @@ class ReaderViewModel @Inject constructor(
     private val _state = MutableStateFlow<ReaderUiState>(ReaderUiState.Loading)
     val state: StateFlow<ReaderUiState> = _state
 
+    /** Last settled page — survives rotation so the pager reopens in place. */
+    var currentPage: Int = 0
+        private set
+
     init {
         viewModelScope.launch {
             _state.value = withContext(engineDispatcher) { openBook() }
@@ -80,6 +84,7 @@ class ReaderViewModel @Inject constructor(
                     if (book.pageCount != pageCount) repository.updatePageCount(bookId, pageCount)
                     val initialPage = (book.locator?.toIntOrNull() ?: 0)
                         .coerceIn(0, pageCount - 1)
+                    currentPage = initialPage
                     ReaderUiState.Ready(
                         book = book,
                         pageCount = pageCount,
@@ -108,6 +113,7 @@ class ReaderViewModel @Inject constructor(
     /** Called when the pager settles on a page — persists locator + progress. */
     fun onPageSettled(index: Int) {
         if (_state.value !is ReaderUiState.Ready) return
+        currentPage = index
         viewModelScope.launch { repository.savePosition(bookId, index, pageCount) }
     }
 
