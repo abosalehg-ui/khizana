@@ -28,7 +28,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -157,13 +156,16 @@ private fun ReaderPage(
     ) {
         val widthPx = constraints.maxWidth
         var failed by remember(page) { mutableStateOf(false) }
-        val bitmap by produceState<Bitmap?>(initialValue = null, page, widthPx) {
-            value = render(page, widthPx)
-            if (value == null) failed = true
+        var bitmap by remember(page, widthPx) { mutableStateOf<Bitmap?>(null) }
+        LaunchedEffect(page, widthPx) {
+            val rendered = render(page, widthPx)
+            bitmap = rendered
+            if (rendered == null) failed = true
         }
+        val current = bitmap
         when {
-            bitmap != null -> Image(
-                bitmap = bitmap!!.asImageBitmap(),
+            current != null -> Image(
+                bitmap = current.asImageBitmap(),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
