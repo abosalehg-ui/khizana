@@ -70,6 +70,36 @@ class ShelvesTest {
     }
 
     @Test
+    fun `tag filter keeps shelf structure but drops unmatched books`() {
+        val shelves = buildShelves(
+            topics = listOf(Topic(1, "تاريخ", 0)),
+            books = listOf(book("a", null), book("b", 1), book("c", 1))
+        )
+
+        val filtered = com.abosalehg.khizana.ui.shelf.filterShelvesByBookIds(
+            shelves,
+            setOf("b")
+        )
+
+        assertEquals(shelves.map { it.topicId }, filtered.map { it.topicId })
+        assertTrue(filtered.first().books.isEmpty())
+        assertEquals(listOf("b"), filtered[1].books.map { it.id })
+    }
+
+    @Test
+    fun `null tag filter is a no-op`() {
+        val shelves = buildShelves(
+            topics = emptyList(),
+            books = listOf(book("a", null))
+        )
+
+        assertEquals(
+            shelves,
+            com.abosalehg.khizana.ui.shelf.filterShelvesByBookIds(shelves, null)
+        )
+    }
+
+    @Test
     fun `books pointing at an unknown topic fall back to the new shelf`() {
         val shelves = buildShelves(
             topics = listOf(Topic(1, "تاريخ", 0)),

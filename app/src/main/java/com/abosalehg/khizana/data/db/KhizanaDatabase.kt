@@ -19,4 +19,5 @@ abstract class KhizanaDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun topicDao(): TopicDao
     abstract fun excludedFolderDao(): ExcludedFolderDao
+    abstract fun tagDao(): TagDao
 }

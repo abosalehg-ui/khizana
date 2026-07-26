@@ -25,20 +25,30 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropEvent
@@ -49,6 +59,7 @@ import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -62,6 +73,7 @@ import com.abosalehg.khizana.R
 import com.abosalehg.khizana.data.scanner.StoragePermission
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.BookStatus
+import com.abosalehg.khizana.domain.model.Tag
 import com.abosalehg.khizana.domain.model.ThemeMode
 import com.abosalehg.khizana.ui.theme.LocalWoodTokens
 import java.io.File
@@ -75,12 +87,18 @@ fun LibraryScreen(
     themeMode: ThemeMode,
     onCycleThemeMode: () -> Unit,
     onOpenBook: (Book) -> Unit,
+    onOpenHidden: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val shelves by viewModel.shelves.collectAsStateWithLifecycle()
+    val tags by viewModel.tags.collectAsStateWithLifecycle()
+    val selectedTagId by viewModel.selectedTagId.collectAsStateWithLifecycle()
     val permissionGranted by viewModel.permissionGranted.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     var showAddTopic by remember { mutableStateOf(false) }
+    var shelfToRename by remember { mutableStateOf<Shelf?>(null) }
+    var shelfToDelete by remember { mutableStateOf<Shelf?>(null) }
+    var bookForTags by remember { mutableStateOf<Book?>(null) }
 
     // The grant happens in system settings — re-check whenever we come back.
     LifecycleResumeEffect(Unit) {
@@ -95,6 +113,46 @@ fun LibraryScreen(
                 showAddTopic = false
             },
             onDismiss = { showAddTopic = false }
+        )
+    }
+    shelfToRename?.let { shelf ->
+        RenameTopicDialog(
+            currentName = shelf.name.orEmpty(),
+            onConfirm = { name ->
+                shelf.topicId?.let { viewModel.renameTopic(it, name) }
+                shelfToRename = null
+            },
+            onDismiss = { shelfToRename = null }
+        )
+    }
+    shelfToDelete?.let { shelf ->
+        AlertDialog(
+            onDismissRequest = { shelfToDelete = null },
+            title = { Text(stringResource(R.string.delete_shelf)) },
+            text = { Text(stringResource(R.string.delete_shelf_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    shelf.topicId?.let { viewModel.deleteTopic(it) }
+                    shelfToDelete = null
+                }) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { shelfToDelete = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+    bookForTags?.let { book ->
+        TagsDialog(
+            book = book,
+            allTags = tags,
+            loadSelected = viewModel::tagIdsForBook,
+            onSave = { tagIds, newNames ->
+                viewModel.saveTags(book.id, tagIds, newNames)
+                bookForTags = null
+            },
+            onDismiss = { bookForTags = null }
         )
     }
 
@@ -117,13 +175,18 @@ fun LibraryScreen(
                             style = MaterialTheme.typography.headlineLarge,
                             color = MaterialTheme.colorScheme.onBackground
                         )
-                        TextButton(onClick = onCycleThemeMode) {
-                            Text(
-                                text = stringResource(
-                                    R.string.theme_mode_label,
-                                    stringResource(themeMode.labelRes())
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = onOpenHidden) {
+                                Text(stringResource(R.string.hidden_books))
+                            }
+                            TextButton(onClick = onCycleThemeMode) {
+                                Text(
+                                    text = stringResource(
+                                        R.string.theme_mode_label,
+                                        stringResource(themeMode.labelRes())
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -146,16 +209,170 @@ fun LibraryScreen(
                         )
                     }
                 }
+                if (tags.isNotEmpty()) {
+                    item(key = "tags") {
+                        TagFilterRow(
+                            tags = tags,
+                            selectedTagId = selectedTagId,
+                            onSelect = viewModel::selectTag
+                        )
+                    }
+                }
                 items(shelves, key = { it.topicId ?: -1L }) { shelf ->
                     ShelfSection(
                         shelf = shelf,
                         onMoveBook = viewModel::moveBook,
-                        onOpenBook = onOpenBook
+                        onOpenBook = onOpenBook,
+                        onRenameShelf = { shelfToRename = it },
+                        onDeleteShelf = { shelfToDelete = it },
+                        onHideBook = { viewModel.hideBook(it.id) },
+                        onTagBook = { bookForTags = it }
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun TagFilterRow(
+    tags: List<Tag>,
+    selectedTagId: Long?,
+    onSelect: (Long?) -> Unit
+) {
+    LazyRow(
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(top = 8.dp)
+    ) {
+        item(key = "all") {
+            FilterChip(
+                selected = selectedTagId == null,
+                onClick = { onSelect(null) },
+                label = { Text(stringResource(R.string.filter_all)) }
+            )
+        }
+        items(tags, key = { it.id }) { tag ->
+            FilterChip(
+                selected = selectedTagId == tag.id,
+                onClick = { onSelect(if (selectedTagId == tag.id) null else tag.id) },
+                label = { Text(tag.name) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RenameTopicDialog(
+    currentName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(currentName) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.rename_shelf)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.topic_name_hint)) },
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(name) }, enabled = name.isNotBlank()) {
+                Text(stringResource(R.string.action_save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
+    )
+}
+
+@Composable
+private fun TagsDialog(
+    book: Book,
+    allTags: List<Tag>,
+    loadSelected: suspend (String) -> Set<Long>,
+    onSave: (tagIds: Set<Long>, newTagNames: List<String>) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var loaded by remember { mutableStateOf(false) }
+    val selected = remember { mutableStateOf(setOf<Long>()) }
+    val newNames = remember { mutableListOf<String>().toMutableStateList() }
+    var newTagText by remember { mutableStateOf("") }
+
+    LaunchedEffect(book.id) {
+        selected.value = loadSelected(book.id)
+        loaded = true
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.tags_dialog_title)) },
+        text = {
+            Column {
+                Text(
+                    text = book.title,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(8.dp))
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(allTags, key = { it.id }) { tag ->
+                        FilterChip(
+                            selected = tag.id in selected.value,
+                            onClick = {
+                                selected.value =
+                                    if (tag.id in selected.value) selected.value - tag.id
+                                    else selected.value + tag.id
+                            },
+                            label = { Text(tag.name) }
+                        )
+                    }
+                    items(newNames.size) { index ->
+                        FilterChip(
+                            selected = true,
+                            onClick = { newNames.removeAt(index) },
+                            label = { Text(newNames[index]) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = newTagText,
+                        onValueChange = { newTagText = it },
+                        label = { Text(stringResource(R.string.new_tag_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = {
+                            if (newTagText.isNotBlank()) {
+                                newNames.add(newTagText.trim())
+                                newTagText = ""
+                            }
+                        },
+                        enabled = newTagText.isNotBlank()
+                    ) { Text(stringResource(R.string.action_add)) }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(selected.value, newNames.toList()) },
+                enabled = loaded
+            ) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
+    )
 }
 
 @Composable
@@ -189,7 +406,11 @@ private fun AddTopicDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
 private fun ShelfSection(
     shelf: Shelf,
     onMoveBook: (bookId: String, topicId: Long?) -> Unit,
-    onOpenBook: (Book) -> Unit
+    onOpenBook: (Book) -> Unit,
+    onRenameShelf: (Shelf) -> Unit,
+    onDeleteShelf: (Shelf) -> Unit,
+    onHideBook: (Book) -> Unit,
+    onTagBook: (Book) -> Unit
 ) {
     val tokens = LocalWoodTokens.current
     var isHovered by remember { mutableStateOf(false) }
@@ -249,11 +470,45 @@ private fun ShelfSection(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Text(
-                text = shelf.books.size.toString(),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = shelf.books.size.toString(),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                // The New shelf is built-in: no rename/delete.
+                if (shelf.topicId != null) {
+                    var menuOpen by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = stringResource(R.string.shelf_options),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.rename_shelf)) },
+                                onClick = {
+                                    menuOpen = false
+                                    onRenameShelf(shelf)
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.delete_shelf)) },
+                                onClick = {
+                                    menuOpen = false
+                                    onDeleteShelf(shelf)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
         if (shelf.books.isEmpty()) {
@@ -277,7 +532,12 @@ private fun ShelfSection(
                 modifier = Modifier.height(120.dp)
             ) {
                 items(shelf.books, key = { it.id }) { book ->
-                    BookSpine(book, onOpen = { onOpenBook(book) })
+                    BookSpine(
+                        book = book,
+                        onOpen = { onOpenBook(book) },
+                        onHide = { onHideBook(book) },
+                        onTags = { onTagBook(book) }
+                    )
                 }
             }
         }
@@ -291,44 +551,84 @@ private fun ShelfSection(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun BookSpine(book: Book, onOpen: () -> Unit) {
+private fun BookSpine(
+    book: Book,
+    onOpen: () -> Unit,
+    onHide: () -> Unit,
+    onTags: () -> Unit
+) {
+    var menuOpen by remember { mutableStateOf(false) }
     Column(
-        modifier = Modifier
-            .width(76.dp)
-            .dragAndDropSource {
-                detectTapGestures(
-                    onTap = { onOpen() },
-                    onLongPress = {
-                        startTransfer(
-                            DragAndDropTransferData(
-                                ClipData.newPlainText("bookId", book.id)
-                            )
-                        )
-                    }
-                )
-            },
+        modifier = Modifier.width(76.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val coverModifier = Modifier
             .width(72.dp)
             .height(98.dp)
             .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
-        if (book.coverPath != null) {
-            AsyncImage(
-                model = File(book.coverPath),
-                contentDescription = book.title,
-                contentScale = ContentScale.Crop,
-                modifier = coverModifier
-            )
-        } else {
+        Box {
             Box(
-                modifier = coverModifier.background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
+                modifier = Modifier.dragAndDropSource {
+                    detectTapGestures(
+                        onTap = { onOpen() },
+                        onLongPress = {
+                            startTransfer(
+                                DragAndDropTransferData(
+                                    ClipData.newPlainText("bookId", book.id)
+                                )
+                            )
+                        }
+                    )
+                }
             ) {
-                Text(
-                    text = book.title.take(1),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                if (book.coverPath != null) {
+                    AsyncImage(
+                        model = File(book.coverPath),
+                        contentDescription = book.title,
+                        contentScale = ContentScale.Crop,
+                        modifier = coverModifier
+                    )
+                } else {
+                    Box(
+                        modifier = coverModifier
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = book.title.take(1),
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+            IconButton(
+                onClick = { menuOpen = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = stringResource(R.string.book_options),
+                    tint = Color(0xCCFFFFFF),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.action_hide)) },
+                    onClick = {
+                        menuOpen = false
+                        onHide()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.manage_tags)) },
+                    onClick = {
+                        menuOpen = false
+                        onTags()
+                    }
                 )
             }
         }

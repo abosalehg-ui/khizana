@@ -13,4 +13,10 @@ interface TopicDao {
 
     @Insert
     suspend fun insert(topic: TopicEntity): Long
+
+    @Query("UPDATE topics SET name = :name WHERE id = :id")
+    suspend fun rename(id: Long, name: String)
+
+    @Query("DELETE FROM topics WHERE id = :id")
+    suspend fun delete(id: Long)
 }

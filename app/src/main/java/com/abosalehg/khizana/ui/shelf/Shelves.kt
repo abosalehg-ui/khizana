@@ -14,6 +14,14 @@ data class Shelf(
 )
 
 /**
+ * Restricts shelves to the given book ids (a tag filter). Null means no
+ * filter. Shelf structure is preserved so drop targets stay visible.
+ */
+fun filterShelvesByBookIds(shelves: List<Shelf>, bookIds: Set<String>?): List<Shelf> =
+    if (bookIds == null) shelves
+    else shelves.map { shelf -> shelf.copy(books = shelf.books.filter { it.id in bookIds }) }
+
+/**
  * Pure grouping logic: the New shelf first, then every topic in the given
  * order — including empty ones, so they remain visible drop targets.
  */

@@ -17,11 +17,20 @@ Current coverage (grows with each milestone):
 | Shelf grouping: New-shelf-first, topic order, orphan fallback | `ShelvesTest` | M3 |
 | Progress math (pageCount 0/1, clamping) & direction resolution | `ReadingTest` | M4 |
 | Spread building (cover alone, odd/even tails) & page↔spread mapping | `SpreadsTest` | M5 |
+| Tag filtering keeps shelf structure; null filter no-op | `ShelvesTest` | M6 |
 | CBZ reading order (case-insensitive alphabetical) | `CbzCoverTest` | M4 |
 
 Planned (from the project spec): `NaturalOrderComparator` (M8).
 
 ## Manual checklist
+
+### M6
+- [ ] ⋮ on a shelf header renames it in place; delete moves its books to «جديد ⭐» (nothing lost).
+- [ ] ⋮ on a book cover → Hide removes it from every shelf immediately.
+- [ ] «الكتب المخفية» lists hidden books; «إظهار» returns the book to its original shelf.
+- [ ] Hide a book, rescan → it stays hidden.
+- [ ] Add a tag to a book; the tag chip row appears; selecting it filters all shelves.
+- [ ] Removing a tag from its last book makes the tag disappear from the filter row.
 
 ### M5
 - [ ] Rotating to landscape shows two facing pages; the cover stays alone.

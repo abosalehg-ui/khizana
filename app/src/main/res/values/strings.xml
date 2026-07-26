@@ -26,6 +26,22 @@
     <string name="reader_corrupt">This file couldn’t be opened — it appears damaged.</string>
     <string name="reader_missing">The book file is missing from storage.</string>
     <string name="reader_page_failed">Couldn’t display this page.</string>
+
+    <string name="hidden_books">Hidden books</string>
+    <string name="no_hidden_books">No hidden books.</string>
+    <string name="action_hide">Hide</string>
+    <string name="action_unhide">Unhide</string>
+    <string name="action_save">Save</string>
+    <string name="action_delete">Delete</string>
+    <string name="book_options">Book options</string>
+    <string name="shelf_options">Shelf options</string>
+    <string name="rename_shelf">Rename shelf</string>
+    <string name="delete_shelf">Delete shelf</string>
+    <string name="delete_shelf_message">This shelf’s books will return to the “New ⭐” shelf. No book will be deleted.</string>
+    <string name="manage_tags">Tags</string>
+    <string name="tags_dialog_title">Book tags</string>
+    <string name="new_tag_hint">New tag</string>
+    <string name="filter_all">All</string>
     <string name="status_protected">Password-protected</string>
     <string name="status_corrupt">Damaged file</string>
 </resources>

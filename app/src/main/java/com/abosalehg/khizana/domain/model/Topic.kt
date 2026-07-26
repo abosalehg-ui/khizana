@@ -6,3 +6,9 @@ data class Topic(
     val name: String,
     val order: Int
 )
+
+/** A free-form label attachable to any number of books. */
+data class Tag(
+    val id: Long,
+    val name: String
+)

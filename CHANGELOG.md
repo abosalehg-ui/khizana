@@ -6,6 +6,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### M6 — Shelf management, tags & hidden books
+
+- Shelf menu (⋮ on every topic shelf header): rename in place, or delete with a clear promise — the shelf's books return to «جديد ⭐», no book is ever deleted. The New shelf itself is built-in and unmanaged.
+- Tags: a ⋮ menu on each book cover opens Hide / Tags. The tags dialog shows all existing tags as chips, toggles membership, and creates new tags inline; unused tags are pruned automatically.
+- Tag filter row above the shelves («الكل» + one chip per tag): selecting a tag narrows every shelf to matching books while keeping the shelf structure (and drop targets) visible.
+- Hidden books: hiding removes a book from all shelves and filters instantly; the «الكتب المخفية» screen (from the library header) lists them with covers and one-tap unhide. Hidden state survives rescans — guaranteed since M1's DAO contract.
+- Unit tests: tag filtering preserves shelf structure; null filter is a no-op.
+
 ### M5 — Landscape spreads & pinch zoom
 
 - Landscape now shows two-page spreads like an open book: the cover always alone, then (1,2), (3,4)…, with a trailing odd page alone. Pure `buildSpreads`/`spreadIndexOfPage` mapping, fully unit-tested.
