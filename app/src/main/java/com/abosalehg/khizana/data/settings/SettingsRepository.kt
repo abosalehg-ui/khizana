@@ -2,6 +2,7 @@ package com.abosalehg.khizana.data.settings
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.abosalehg.khizana.domain.model.ThemeMode
@@ -23,7 +24,16 @@ class SettingsRepository @Inject constructor(
         dataStore.edit { prefs -> prefs[Keys.THEME_MODE] = mode.name }
     }
 
+    /** Deep scan walks all of external storage instead of just MediaStore. */
+    val deepScanEnabled: Flow<Boolean> = dataStore.data
+        .map { prefs -> prefs[Keys.DEEP_SCAN] ?: false }
+
+    suspend fun setDeepScanEnabled(enabled: Boolean) {
+        dataStore.edit { prefs -> prefs[Keys.DEEP_SCAN] = enabled }
+    }
+
     private object Keys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val DEEP_SCAN = booleanPreferencesKey("deep_scan")
     }
 }

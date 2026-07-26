@@ -74,7 +74,6 @@ import com.abosalehg.khizana.data.scanner.StoragePermission
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.BookStatus
 import com.abosalehg.khizana.domain.model.Tag
-import com.abosalehg.khizana.domain.model.ThemeMode
 import com.abosalehg.khizana.ui.theme.LocalWoodTokens
 import java.io.File
 
@@ -84,10 +83,8 @@ import java.io.File
  */
 @Composable
 fun LibraryScreen(
-    themeMode: ThemeMode,
-    onCycleThemeMode: () -> Unit,
     onOpenBook: (Book) -> Unit,
-    onOpenHidden: () -> Unit,
+    onOpenSettings: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val shelves by viewModel.shelves.collectAsStateWithLifecycle()
@@ -99,6 +96,8 @@ fun LibraryScreen(
     var shelfToRename by remember { mutableStateOf<Shelf?>(null) }
     var shelfToDelete by remember { mutableStateOf<Shelf?>(null) }
     var bookForTags by remember { mutableStateOf<Book?>(null) }
+    var bookToDelete by remember { mutableStateOf<Book?>(null) }
+    val context = LocalContext.current
 
     // The grant happens in system settings — re-check whenever we come back.
     LifecycleResumeEffect(Unit) {
@@ -143,6 +142,32 @@ fun LibraryScreen(
             }
         )
     }
+    bookToDelete?.let { book ->
+        AlertDialog(
+            onDismissRequest = { bookToDelete = null },
+            title = { Text(stringResource(R.string.delete_book)) },
+            text = { Text(stringResource(R.string.delete_book_message, book.title)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteBook(book) { ok ->
+                        if (!ok) {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(R.string.delete_book_failed),
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                    bookToDelete = null
+                }) { Text(stringResource(R.string.action_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { bookToDelete = null }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
     bookForTags?.let { book ->
         TagsDialog(
             book = book,
@@ -175,18 +200,8 @@ fun LibraryScreen(
                             style = MaterialTheme.typography.headlineLarge,
                             color = MaterialTheme.colorScheme.onBackground
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(onClick = onOpenHidden) {
-                                Text(stringResource(R.string.hidden_books))
-                            }
-                            TextButton(onClick = onCycleThemeMode) {
-                                Text(
-                                    text = stringResource(
-                                        R.string.theme_mode_label,
-                                        stringResource(themeMode.labelRes())
-                                    )
-                                )
-                            }
+                        TextButton(onClick = onOpenSettings) {
+                            Text(stringResource(R.string.settings))
                         }
                     }
                 }
@@ -226,7 +241,8 @@ fun LibraryScreen(
                         onRenameShelf = { shelfToRename = it },
                         onDeleteShelf = { shelfToDelete = it },
                         onHideBook = { viewModel.hideBook(it.id) },
-                        onTagBook = { bookForTags = it }
+                        onTagBook = { bookForTags = it },
+                        onDeleteBook = { bookToDelete = it }
                     )
                 }
             }
@@ -410,7 +426,8 @@ private fun ShelfSection(
     onRenameShelf: (Shelf) -> Unit,
     onDeleteShelf: (Shelf) -> Unit,
     onHideBook: (Book) -> Unit,
-    onTagBook: (Book) -> Unit
+    onTagBook: (Book) -> Unit,
+    onDeleteBook: (Book) -> Unit
 ) {
     val tokens = LocalWoodTokens.current
     var isHovered by remember { mutableStateOf(false) }
@@ -536,7 +553,8 @@ private fun ShelfSection(
                         book = book,
                         onOpen = { onOpenBook(book) },
                         onHide = { onHideBook(book) },
-                        onTags = { onTagBook(book) }
+                        onTags = { onTagBook(book) },
+                        onDelete = { onDeleteBook(book) }
                     )
                 }
             }
@@ -555,7 +573,8 @@ private fun BookSpine(
     book: Book,
     onOpen: () -> Unit,
     onHide: () -> Unit,
-    onTags: () -> Unit
+    onTags: () -> Unit,
+    onDelete: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     Column(
@@ -628,6 +647,18 @@ private fun BookSpine(
                     onClick = {
                         menuOpen = false
                         onTags()
+                    }
+                )
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(R.string.delete_book),
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    onClick = {
+                        menuOpen = false
+                        onDelete()
                     }
                 )
             }
@@ -757,12 +788,6 @@ private fun ScanSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
-}
-
-private fun ThemeMode.labelRes(): Int = when (this) {
-    ThemeMode.SYSTEM -> R.string.theme_mode_system
-    ThemeMode.LIGHT -> R.string.theme_mode_light
-    ThemeMode.DARK -> R.string.theme_mode_dark
 }
 
 /** A single wooden plank — the shelf surface books stand on. */

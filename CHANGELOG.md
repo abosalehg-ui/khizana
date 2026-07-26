@@ -6,6 +6,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### M7 — Settings: deep scan, excluded folders, delete & backup
+
+- Settings screen (theme moved here from the library header, plus a hidden-books entry): the library header now has a single «الإعدادات» button.
+- Deep scan toggle (DataStore): scans walk all of external storage instead of MediaStore — slower but catches unindexed files; the scan button honors it automatically.
+- Excluded folders management: add via the system folder picker (SAF tree → filesystem path for primary/SD volumes; unsupported providers politely refused), remove with one tap; scans skip them (M1 filter, now user-editable).
+- Permanent delete from device («حذف من الجهاز» in the book menu, error-red): confirm dialog states it's irreversible; deletes the file, cover, DB row and tag links. If the file can't be deleted, nothing is touched.
+- Backup & restore to a user-chosen JSON file: shelves, tags, reading positions, hidden flags and excluded folders — keyed by content fingerprint, with **no paths stored**. Restoring on a new device inserts unknown books as MISSING; the first scan re-attaches them by fingerprint automatically. Topics/tags are merged by name.
+- Unit tests: backup JSON round-trip (nulls, Arabic text, empty/missing sections), SAF tree-id → path conversion.
+
 ### M6 — Shelf management, tags & hidden books
 
 - Shelf menu (⋮ on every topic shelf header): rename in place, or delete with a clear promise — the shelf's books return to «جديد ⭐», no book is ever deleted. The New shelf itself is built-in and unmanaged.

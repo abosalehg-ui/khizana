@@ -100,6 +100,8 @@ dependencies {
     implementation(libs.pdfium.android)
 
     testImplementation(libs.junit)
+    // Real org.json for JVM unit tests (the android.jar stubs throw).
+    testImplementation(libs.org.json)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.test.core)

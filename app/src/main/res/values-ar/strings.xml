@@ -42,6 +42,27 @@
     <string name="tags_dialog_title">وسوم الكتاب</string>
     <string name="new_tag_hint">وسم جديد</string>
     <string name="filter_all">الكل</string>
+
+    <string name="settings">الإعدادات</string>
+    <string name="action_change">تغيير</string>
+    <string name="action_open">فتح</string>
+    <string name="deep_scan_title">البحث العميق</string>
+    <string name="deep_scan_desc">يمسح كل التخزين بدل فهرس الوسائط. أبطأ، لكنه يجد ملفات فاتها الفهرس.</string>
+    <string name="excluded_folders_title">المجلدات المستبعدة</string>
+    <string name="excluded_folders_empty">لا مجلدات مستبعدة. الفحص يشمل كل التخزين.</string>
+    <string name="add_folder">إضافة مجلد</string>
+    <string name="folder_not_supported">لا يمكن استبعاد هذا النوع من المجلدات.</string>
+    <string name="backup_title">النسخ الاحتياطي والاستعادة</string>
+    <string name="backup_desc">يحفظ أرففك ووسومك ومواضع القراءة والإخفاء في ملف JSON. الاستعادة تعيد ربط كل شيء بالبصمة — حتى على جهاز جديد بعد الفحص.</string>
+    <string name="backup_action">نسخ احتياطي</string>
+    <string name="restore_action">استعادة</string>
+    <string name="backup_saved">تم حفظ النسخة الاحتياطية.</string>
+    <string name="backup_failed">فشل النسخ الاحتياطي.</string>
+    <string name="restore_done">تمت الاستعادة. شغّل الفحص لإعادة ربط الملفات.</string>
+    <string name="restore_failed">فشلت الاستعادة — هل هذا ملف نسخة احتياطية من خِزانة؟</string>
+    <string name="delete_book">حذف من الجهاز</string>
+    <string name="delete_book_message">سيُحذف «%1$s» نهائياً من جهازك مع بيانات قراءته. لا يمكن التراجع عن هذا.</string>
+    <string name="delete_book_failed">تعذّر حذف الملف.</string>
     <string name="status_protected">محمي بكلمة مرور</string>
     <string name="status_corrupt">ملف تالف</string>
 </resources>

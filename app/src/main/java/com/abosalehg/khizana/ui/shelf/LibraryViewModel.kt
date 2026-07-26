@@ -7,7 +7,10 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import androidx.work.workDataOf
 import com.abosalehg.khizana.data.scanner.StoragePermission
+import com.abosalehg.khizana.data.settings.SettingsRepository
+import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.repo.LibraryRepository
 import com.abosalehg.khizana.work.ScanWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -34,7 +38,8 @@ data class ScanUiState(
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val repository: LibraryRepository
+    private val repository: LibraryRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     private val workManager = WorkManager.getInstance(context)
@@ -73,11 +78,20 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun startScan() {
-        workManager.enqueueUniqueWork(
-            ScanWorker.UNIQUE_NAME,
-            ExistingWorkPolicy.KEEP,
-            OneTimeWorkRequestBuilder<ScanWorker>().build()
-        )
+        viewModelScope.launch {
+            val deep = settingsRepository.deepScanEnabled.first()
+            workManager.enqueueUniqueWork(
+                ScanWorker.UNIQUE_NAME,
+                ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<ScanWorker>()
+                    .setInputData(workDataOf(ScanWorker.KEY_DEEP to deep))
+                    .build()
+            )
+        }
+    }
+
+    fun deleteBook(book: Book, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch { onResult(repository.deleteBookPermanently(book)) }
     }
 
     fun addTopic(name: String) {

@@ -18,11 +18,20 @@ Current coverage (grows with each milestone):
 | Progress math (pageCount 0/1, clamping) & direction resolution | `ReadingTest` | M4 |
 | Spread building (cover alone, odd/even tails) & page↔spread mapping | `SpreadsTest` | M5 |
 | Tag filtering keeps shelf structure; null filter no-op | `ShelvesTest` | M6 |
+| Backup JSON round-trip (nulls, Arabic, empty sections) | `BackupSerializerTest` | M7 |
+| SAF tree-id → filesystem path (primary, SD, unsupported) | `TreePathsTest` | M7 |
 | CBZ reading order (case-insensitive alphabetical) | `CbzCoverTest` | M4 |
 
 Planned (from the project spec): `NaturalOrderComparator` (M8).
 
 ## Manual checklist
+
+### M7
+- [ ] Deep scan toggle on → scan finds a PDF in a folder MediaStore doesn't index.
+- [ ] Excluding a folder removes its books on the next scan (marked missing, not deleted); removing the exclusion brings them back.
+- [ ] «حذف من الجهاز» asks for confirmation, then the file is really gone from storage.
+- [ ] Back up, wipe app data, restore, scan → shelves, tags, progress and hidden flags all return.
+- [ ] Restore an old backup over current data → nothing is lost, metadata merges.
 
 ### M6
 - [ ] ⋮ on a shelf header renames it in place; delete moves its books to «جديد ⭐» (nothing lost).
