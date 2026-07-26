@@ -70,4 +70,24 @@ interface BookDao {
     /** On shelf deletion its books return to the New shelf. */
     @Query("UPDATE books SET topicId = NULL WHERE topicId = :topicId")
     suspend fun clearTopic(topicId: Long)
+
+    /** Explicit user deletion only — rescans never call this. */
+    @Query("DELETE FROM books WHERE id = :id")
+    suspend fun deleteById(id: String)
+
+    @Query("DELETE FROM book_tags WHERE bookId = :bookId")
+    suspend fun deleteTagRefsForBook(bookId: String)
+
+    @Query("UPDATE books SET topicId = :topicId, locator = :locator, progress = :progress, " +
+        "isHidden = :isHidden, readingDirection = :readingDirection, lastReadAt = :lastReadAt " +
+        "WHERE id = :id")
+    suspend fun applyRestoredMetadata(
+        id: String,
+        topicId: Long?,
+        locator: String?,
+        progress: Float,
+        isHidden: Boolean,
+        readingDirection: String,
+        lastReadAt: Long?
+    )
 }

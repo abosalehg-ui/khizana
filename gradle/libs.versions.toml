@@ -15,6 +15,7 @@ workManager = "2.10.0"
 coil = "3.0.4"
 pdfium = "1.9.2"
 junit = "4.13.2"
+orgJson = "20240303"
 androidxJunit = "1.2.1"
 androidxTestCore = "1.6.1"
 androidxTestRunner = "1.6.2"
@@ -57,6 +58,7 @@ coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref 
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 pdfium-android = { group = "com.github.mhiew", name = "pdfium-android", version.ref = "pdfium" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
 androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTestCore" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }

@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.abosalehg.khizana.ui.reader.ReaderScreen
+import com.abosalehg.khizana.ui.settings.SettingsScreen
 import com.abosalehg.khizana.ui.shelf.HiddenBooksScreen
 import com.abosalehg.khizana.ui.shelf.LibraryScreen
 import com.abosalehg.khizana.ui.theme.KhizanaTheme
@@ -37,14 +38,18 @@ private fun KhizanaRoot(viewModel: MainViewModel = hiltViewModel()) {
         NavHost(navController = navController, startDestination = "library") {
             composable("library") {
                 LibraryScreen(
-                    themeMode = themeMode,
-                    onCycleThemeMode = viewModel::cycleThemeMode,
                     onOpenBook = { book -> navController.navigate("reader/${book.id}") },
-                    onOpenHidden = { navController.navigate("hidden") }
+                    onOpenSettings = { navController.navigate("settings") }
                 )
             }
             composable("reader/{bookId}") {
                 ReaderScreen(onBack = { navController.popBackStack() })
+            }
+            composable("settings") {
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenHidden = { navController.navigate("hidden") }
+                )
             }
             composable("hidden") {
                 HiddenBooksScreen(onBack = { navController.popBackStack() })

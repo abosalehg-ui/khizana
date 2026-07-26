@@ -36,7 +36,8 @@ class LibraryRepository @Inject constructor(
     private val topicDao: TopicDao,
     private val tagDao: TagDao,
     private val excludedFolderDao: ExcludedFolderDao,
-    private val scanner: LibraryScanner
+    private val scanner: LibraryScanner,
+    private val coverStore: com.abosalehg.khizana.data.covers.CoverStore
 ) {
 
     /** Books the shelves can show (not hidden, present on disk). */
@@ -74,6 +75,32 @@ class LibraryRepository @Inject constructor(
 
     suspend fun setBookHidden(bookId: String, hidden: Boolean) =
         bookDao.setHidden(bookId, hidden)
+
+    // ---- Excluded folders ----
+
+    val excludedFolders: Flow<List<String>> =
+        excludedFolderDao.observeAll().map { list -> list.map { it.path } }
+
+    suspend fun addExcludedFolder(path: String) =
+        excludedFolderDao.insert(com.abosalehg.khizana.data.db.ExcludedFolderEntity(path))
+
+    suspend fun removeExcludedFolder(path: String) = excludedFolderDao.delete(path)
+
+    // ---- Permanent deletion (explicit user action only) ----
+
+    /**
+     * Deletes the file from disk and the book's row + tag links. Returns
+     * false (and keeps everything) if the file exists but can't be deleted.
+     */
+    suspend fun deleteBookPermanently(book: Book): Boolean = withContext(Dispatchers.IO) {
+        val file = java.io.File(book.path)
+        if (file.exists() && !file.delete()) return@withContext false
+        coverStore.delete(book.id)
+        bookDao.deleteTagRefsForBook(book.id)
+        bookDao.deleteById(book.id)
+        tagDao.pruneUnused()
+        true
+    }
 
     // ---- Tags ----
 
