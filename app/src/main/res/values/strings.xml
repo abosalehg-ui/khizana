@@ -1,8 +1,17 @@
 <resources>
     <string name="app_name">Khizana</string>
-    <string name="shelf_placeholder_tagline">Your private library, on wooden shelves. No internet, no tracking.</string>
     <string name="theme_mode_label">Theme: %1$s</string>
     <string name="theme_mode_system">System</string>
     <string name="theme_mode_light">Light</string>
     <string name="theme_mode_dark">Dark</string>
+
+    <string name="permission_title">Access to your files</string>
+    <string name="permission_rationale">Khizana needs the “All files access” permission for one purpose: finding your book files (PDF and CBZ) wherever they are on this device and opening them directly. The app has no internet permission, so nothing ever leaves your device. Note: Android itself blocks access to Android/data and Android/obb — no app can read them.</string>
+    <string name="permission_grant">Grant access</string>
+
+    <string name="scan_now">Scan library</string>
+    <string name="scanning_progress">Scanning… %1$d / %2$d</string>
+    <string name="scan_report">Scanned %1$d files: %2$d new, %3$d updated, %4$d missing</string>
+    <string name="books_count">Books: %1$d</string>
+    <string name="empty_library">No books yet. Tap “Scan library” to find the PDF and CBZ files on your device.</string>
 </resources>
