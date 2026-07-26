@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Khizana</string>
+    <string name="shelf_placeholder_tagline">Your private library, on wooden shelves. No internet, no tracking.</string>
+    <string name="theme_mode_label">Theme: %1$s</string>
+    <string name="theme_mode_system">System</string>
+    <string name="theme_mode_light">Light</string>
+    <string name="theme_mode_dark">Dark</string>
+</resources>

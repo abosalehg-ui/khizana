@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">خِزانة</string>
+    <string name="shelf_placeholder_tagline">مكتبتك الخاصة على رفوف خشبية. بلا إنترنت، بلا تتبّع.</string>
+    <string name="theme_mode_label">المظهر: %1$s</string>
+    <string name="theme_mode_system">تلقائي</string>
+    <string name="theme_mode_light">فاتح</string>
+    <string name="theme_mode_dark">غامق</string>
+</resources>
