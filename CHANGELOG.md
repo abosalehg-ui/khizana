@@ -6,6 +6,14 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### M8 — Search, natural ordering, manual ordering & Continue Reading
+
+- `NaturalOrderComparator`: digit runs compare as numbers («المجلد 2» before «المجلد 10»), understanding Western, Arabic-Indic (٠-٩) and Eastern (۰-۹) digits, case-insensitive text, no overflow on long numbers. Applied to shelf ordering AND CBZ page order (page_2 before page_10 without zero padding).
+- Library search field: case- and diacritic-insensitive, Arabic-aware normalization (tashkeel stripped; أ/إ/آ→ا, ة→ه, ى→ي) across title, file name and author; composes with the tag filter.
+- Manual ordering by drag & drop: dropping a book **onto another book** inserts it before that book (moving shelves if needed); a trailing drop slot and empty shelves append. The shelf's `manualOrder` is rewritten 1..n; unordered books follow in natural title order.
+- «أكمل القراءة» synthetic shelf: up to 10 unfinished books, most recently read first, shown above everything only when non-empty; never a drop target.
+- Unit tests: natural comparator (Arabic/Latin/Arabic-Indic digits, leading zeros, case), search normalization, Continue-Reading shelf rules, within-shelf ordering, CBZ natural page order.
+
 ### M7 — Settings: deep scan, excluded folders, delete & backup
 
 - Settings screen (theme moved here from the library header, plus a hidden-books entry): the library header now has a single «الإعدادات» button.

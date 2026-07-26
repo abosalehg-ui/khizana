@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -47,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
@@ -224,6 +226,28 @@ fun LibraryScreen(
                         )
                     }
                 }
+                item(key = "search") {
+                    val query by viewModel.searchQuery.collectAsStateWithLifecycle()
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = viewModel::setSearchQuery,
+                        placeholder = { Text(stringResource(R.string.search_hint)) },
+                        singleLine = true,
+                        trailingIcon = {
+                            if (query.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                                    Icon(
+                                        imageVector = Icons.Default.Clear,
+                                        contentDescription = stringResource(R.string.action_cancel)
+                                    )
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                    )
+                }
                 if (tags.isNotEmpty()) {
                     item(key = "tags") {
                         TagFilterRow(
@@ -233,10 +257,11 @@ fun LibraryScreen(
                         )
                     }
                 }
-                items(shelves, key = { it.topicId ?: -1L }) { shelf ->
+                items(shelves, key = { "${it.kind.name}:${it.topicId ?: -1L}" }) { shelf ->
                     ShelfSection(
                         shelf = shelf,
                         onMoveBook = viewModel::moveBook,
+                        onDropOnBook = viewModel::dropOnBook,
                         onOpenBook = onOpenBook,
                         onRenameShelf = { shelfToRename = it },
                         onDeleteShelf = { shelfToDelete = it },
@@ -422,6 +447,7 @@ private fun AddTopicDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
 private fun ShelfSection(
     shelf: Shelf,
     onMoveBook: (bookId: String, topicId: Long?) -> Unit,
+    onDropOnBook: (draggedId: String, target: Book) -> Unit,
     onOpenBook: (Book) -> Unit,
     onRenameShelf: (Shelf) -> Unit,
     onDeleteShelf: (Shelf) -> Unit,
@@ -429,51 +455,13 @@ private fun ShelfSection(
     onTagBook: (Book) -> Unit,
     onDeleteBook: (Book) -> Unit
 ) {
-    val tokens = LocalWoodTokens.current
-    var isHovered by remember { mutableStateOf(false) }
-    val dropTarget = remember(shelf.topicId) {
-        object : DragAndDropTarget {
-            override fun onEntered(event: DragAndDropEvent) {
-                isHovered = true
-            }
-
-            override fun onExited(event: DragAndDropEvent) {
-                isHovered = false
-            }
-
-            override fun onEnded(event: DragAndDropEvent) {
-                isHovered = false
-            }
-
-            override fun onDrop(event: DragAndDropEvent): Boolean {
-                isHovered = false
-                val clip = event.toAndroidDragEvent().clipData ?: return false
-                val bookId = (0 until clip.itemCount)
-                    .firstNotNullOfOrNull { clip.getItemAt(it).text?.toString() }
-                    ?: return false
-                onMoveBook(bookId, shelf.topicId)
-                return true
-            }
-        }
-    }
+    // The synthetic Continue Reading shelf is never a drop target.
+    val acceptsDrops = shelf.kind != ShelfKind.CONTINUE_READING
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 16.dp)
-            .dragAndDropTarget(
-                shouldStartDragAndDrop = { event ->
-                    event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
-                },
-                target = dropTarget
-            )
-            .then(
-                if (isHovered) {
-                    Modifier.border(2.dp, tokens.goldSoft, RoundedCornerShape(8.dp))
-                } else {
-                    Modifier
-                }
-            )
     ) {
         Row(
             modifier = Modifier
@@ -483,7 +471,11 @@ private fun ShelfSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = shelf.name ?: stringResource(R.string.shelf_new),
+                text = when (shelf.kind) {
+                    ShelfKind.CONTINUE_READING -> stringResource(R.string.continue_reading)
+                    ShelfKind.NEW -> stringResource(R.string.shelf_new)
+                    ShelfKind.TOPIC -> shelf.name.orEmpty()
+                },
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -529,10 +521,26 @@ private fun ShelfSection(
         }
         Spacer(Modifier.height(8.dp))
         if (shelf.books.isEmpty()) {
+            var hovered by remember { mutableStateOf(false) }
+            val tokens = LocalWoodTokens.current
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp),
+                    .height(120.dp)
+                    .then(
+                        if (acceptsDrops) {
+                            dropTargetModifier(
+                                key = shelf.topicId,
+                                onDropId = { id -> onMoveBook(id, shelf.topicId) },
+                                onHoverChanged = { hovered = it }
+                            )
+                        } else Modifier
+                    )
+                    .then(
+                        if (hovered) {
+                            Modifier.border(2.dp, tokens.goldSoft, RoundedCornerShape(8.dp))
+                        } else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -551,11 +559,18 @@ private fun ShelfSection(
                 items(shelf.books, key = { it.id }) { book ->
                     BookSpine(
                         book = book,
+                        acceptDrops = acceptsDrops,
+                        onDroppedOn = { draggedId -> onDropOnBook(draggedId, book) },
                         onOpen = { onOpenBook(book) },
                         onHide = { onHideBook(book) },
                         onTags = { onTagBook(book) },
                         onDelete = { onDeleteBook(book) }
                     )
+                }
+                if (acceptsDrops) {
+                    item(key = "end-slot") {
+                        EndDropSlot(onDropId = { id -> onMoveBook(id, shelf.topicId) })
+                    }
                 }
             }
         }
@@ -571,14 +586,33 @@ private fun ShelfSection(
 @Composable
 private fun BookSpine(
     book: Book,
+    acceptDrops: Boolean,
+    onDroppedOn: (draggedId: String) -> Unit,
     onOpen: () -> Unit,
     onHide: () -> Unit,
     onTags: () -> Unit,
     onDelete: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var hovered by remember { mutableStateOf(false) }
+    val tokens = LocalWoodTokens.current
     Column(
-        modifier = Modifier.width(76.dp),
+        modifier = Modifier
+            .width(76.dp)
+            .then(
+                if (acceptDrops) {
+                    dropTargetModifier(
+                        key = book.id,
+                        onDropId = onDroppedOn,
+                        onHoverChanged = { hovered = it }
+                    )
+                } else Modifier
+            )
+            .then(
+                if (hovered) {
+                    Modifier.border(2.dp, tokens.goldSoft, RoundedCornerShape(4.dp))
+                } else Modifier
+            ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val coverModifier = Modifier
@@ -788,6 +822,76 @@ private fun ScanSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+/**
+ * Shared drop-target modifier: extracts the dragged book id from the clip
+ * data and reports hover state for the gold highlight.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun dropTargetModifier(
+    key: Any?,
+    onDropId: (String) -> Unit,
+    onHoverChanged: (Boolean) -> Unit
+): Modifier {
+    val currentOnDrop by rememberUpdatedState(onDropId)
+    val currentHover by rememberUpdatedState(onHoverChanged)
+    val target = remember(key) {
+        object : DragAndDropTarget {
+            override fun onEntered(event: DragAndDropEvent) {
+                currentHover(true)
+            }
+
+            override fun onExited(event: DragAndDropEvent) {
+                currentHover(false)
+            }
+
+            override fun onEnded(event: DragAndDropEvent) {
+                currentHover(false)
+            }
+
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                currentHover(false)
+                val clip = event.toAndroidDragEvent().clipData ?: return false
+                val id = (0 until clip.itemCount)
+                    .firstNotNullOfOrNull { clip.getItemAt(it).text?.toString() }
+                    ?: return false
+                currentOnDrop(id)
+                return true
+            }
+        }
+    }
+    return Modifier.dragAndDropTarget(
+        shouldStartDragAndDrop = { event ->
+            event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
+        },
+        target = target
+    )
+}
+
+/** Trailing drop area at the end of a shelf row: append to this shelf. */
+@Composable
+private fun EndDropSlot(onDropId: (String) -> Unit) {
+    var hovered by remember { mutableStateOf(false) }
+    val tokens = LocalWoodTokens.current
+    Box(
+        modifier = Modifier
+            .width(44.dp)
+            .height(98.dp)
+            .then(
+                dropTargetModifier(
+                    key = "end",
+                    onDropId = onDropId,
+                    onHoverChanged = { hovered = it }
+                )
+            )
+            .then(
+                if (hovered) {
+                    Modifier.background(tokens.goldSoft.copy(alpha = 0.3f))
+                } else Modifier
+            )
+    )
 }
 
 /** A single wooden plank — the shelf surface books stand on. */

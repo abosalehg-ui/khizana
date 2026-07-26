@@ -24,11 +24,12 @@ object CbzCover {
     }
 
     /**
-     * Image entries in reading order (case-insensitive alphabetical for now;
-     * natural ordering with numbers arrives in a later milestone).
+     * Image entries in natural reading order: digit runs compare as numbers,
+     * so page_2 comes before page_10 even without zero padding.
      */
     fun sortedImageEntries(entryNames: List<String>): List<String> =
-        entryNames.filter(::isImageEntry).sortedBy { it.lowercase() }
+        entryNames.filter(::isImageEntry)
+            .sortedWith(com.abosalehg.khizana.util.NaturalOrderComparator)
 
     /** Picks the cover entry from a list of archive entry names. */
     fun pickCoverEntry(entryNames: List<String>): String? =

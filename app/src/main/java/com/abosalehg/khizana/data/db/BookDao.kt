@@ -64,6 +64,9 @@ interface BookDao {
     @Query("UPDATE books SET isHidden = :hidden WHERE id = :id")
     suspend fun setHidden(id: String, hidden: Boolean)
 
+    @Query("UPDATE books SET manualOrder = :order WHERE id = :id")
+    suspend fun updateManualOrder(id: String, order: Int)
+
     @Query("SELECT * FROM books WHERE isHidden = 1 AND status != 'MISSING' ORDER BY title ASC")
     fun observeHidden(): Flow<List<BookEntity>>
 

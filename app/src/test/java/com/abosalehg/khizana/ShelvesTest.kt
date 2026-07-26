@@ -13,26 +13,33 @@ import org.junit.Test
 
 class ShelvesTest {
 
-    private fun book(id: String, topicId: Long?) = Book(
+    private fun book(
+        id: String,
+        topicId: Long?,
+        title: String = id,
+        progress: Float = 0f,
+        lastReadAt: Long? = null,
+        manualOrder: Int = 0
+    ) = Book(
         id = id,
         path = "/p/$id.pdf",
         fileName = "$id.pdf",
         format = BookFormat.PDF,
-        title = id,
+        title = title,
         author = null,
         topicId = topicId,
         pageCount = 0,
         locator = null,
-        progress = 0f,
+        progress = progress,
         readingDirection = ReadingDirection.AUTO,
         coverPath = null,
         coverFailed = false,
         status = BookStatus.OK,
         isHidden = false,
-        manualOrder = 0,
+        manualOrder = manualOrder,
         fileSize = 1,
         addedAt = 1,
-        lastReadAt = null
+        lastReadAt = lastReadAt
     )
 
     @Test
@@ -67,6 +74,79 @@ class ShelvesTest {
 
         assertEquals(2, shelves.size)
         assertTrue(shelves.all { it.books.isEmpty() })
+    }
+
+    @Test
+    fun `continue reading shelf appears first with in-progress books newest-read first`() {
+        val shelves = buildShelves(
+            topics = emptyList(),
+            books = listOf(
+                book("done", null, progress = 1f, lastReadAt = 50),
+                book("old", null, progress = 0.5f, lastReadAt = 10),
+                book("recent", null, progress = 0.2f, lastReadAt = 99),
+                book("untouched", null)
+            )
+        )
+
+        assertEquals(
+            com.abosalehg.khizana.ui.shelf.ShelfKind.CONTINUE_READING,
+            shelves.first().kind
+        )
+        assertEquals(listOf("recent", "old"), shelves.first().books.map { it.id })
+    }
+
+    @Test
+    fun `continue reading shelf is absent when nothing is in progress`() {
+        val shelves = buildShelves(topics = emptyList(), books = listOf(book("a", null)))
+
+        assertEquals(com.abosalehg.khizana.ui.shelf.ShelfKind.NEW, shelves.first().kind)
+    }
+
+    @Test
+    fun `continue reading is capped`() {
+        val many = (1..15).map {
+            book("b$it", null, progress = 0.5f, lastReadAt = it.toLong())
+        }
+        val shelves = buildShelves(topics = emptyList(), books = many)
+
+        assertEquals(
+            com.abosalehg.khizana.ui.shelf.CONTINUE_READING_LIMIT,
+            shelves.first().books.size
+        )
+    }
+
+    @Test
+    fun `books within a shelf follow natural title order`() {
+        val shelves = buildShelves(
+            topics = emptyList(),
+            books = listOf(
+                book("x", null, title = "المجلد 10"),
+                book("y", null, title = "المجلد 2"),
+                book("z", null, title = "المجلد 1")
+            )
+        )
+
+        assertEquals(
+            listOf("المجلد 1", "المجلد 2", "المجلد 10"),
+            shelves.first().books.map { it.title }
+        )
+    }
+
+    @Test
+    fun `manually ordered books come before unordered ones`() {
+        val shelves = buildShelves(
+            topics = emptyList(),
+            books = listOf(
+                book("auto", null, title = "آلف"),
+                book("second", null, title = "ياء", manualOrder = 2),
+                book("first", null, title = "واو", manualOrder = 1)
+            )
+        )
+
+        assertEquals(
+            listOf("first", "second", "auto"),
+            shelves.first().books.map { it.id }
+        )
     }
 
     @Test

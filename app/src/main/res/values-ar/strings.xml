@@ -63,6 +63,8 @@
     <string name="delete_book">حذف من الجهاز</string>
     <string name="delete_book_message">سيُحذف «%1$s» نهائياً من جهازك مع بيانات قراءته. لا يمكن التراجع عن هذا.</string>
     <string name="delete_book_failed">تعذّر حذف الملف.</string>
+    <string name="continue_reading">أكمل القراءة</string>
+    <string name="search_hint">ابحث في مكتبتك…</string>
     <string name="status_protected">محمي بكلمة مرور</string>
     <string name="status_corrupt">ملف تالف</string>
 </resources>

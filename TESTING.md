@@ -20,11 +20,23 @@ Current coverage (grows with each milestone):
 | Tag filtering keeps shelf structure; null filter no-op | `ShelvesTest` | M6 |
 | Backup JSON round-trip (nulls, Arabic, empty sections) | `BackupSerializerTest` | M7 |
 | SAF tree-id → filesystem path (primary, SD, unsupported) | `TreePathsTest` | M7 |
+| Natural ordering (Arabic/Latin/Arabic-Indic digits, zeros, case) | `NaturalOrderTest` | M8 |
+| Search normalization (tashkeel, alef/ta-marbuta/maqsura variants) | `SearchTest` | M8 |
+| Continue-Reading shelf rules & within-shelf ordering | `ShelvesTest` | M8 |
+| CBZ natural page order | `CbzCoverTest` | M8 |
 | CBZ reading order (case-insensitive alphabetical) | `CbzCoverTest` | M4 |
 
-Planned (from the project spec): `NaturalOrderComparator` (M8).
+All unit tests planned in the project spec are now implemented.
 
 ## Manual checklist
+
+### M8
+- [ ] Searching «تاريخ» finds «تَارِيخ الطبري» (diacritics ignored); «مكتبه» finds «مكتبة».
+- [ ] Books titled المجلد 1 / المجلد 2 / المجلد 10 appear in that order on the shelf.
+- [ ] Drag a book onto another book → it lands right before it; onto the end slot → it appends.
+- [ ] The manual order survives app restart and rescans.
+- [ ] Reading part of a book puts it in «أكمل القراءة» at the top; finishing it removes it.
+- [ ] A CBZ with pages p1, p2, p10 (unpadded) shows them in the right order.
 
 ### M7
 - [ ] Deep scan toggle on → scan finds a PDF in a folder MediaStore doesn't index.

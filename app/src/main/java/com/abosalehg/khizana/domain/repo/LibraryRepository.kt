@@ -57,6 +57,34 @@ class LibraryRepository @Inject constructor(
     suspend fun moveBookToTopic(bookId: String, topicId: Long?) =
         bookDao.updateTopic(bookId, topicId)
 
+    /**
+     * Drops [draggedId] onto [targetId]: the dragged book is inserted right
+     * before the target within the target's shelf (moving shelves if
+     * needed), and the whole shelf's manualOrder is rewritten 1..n.
+     */
+    suspend fun reorderBook(draggedId: String, targetId: String) {
+        if (draggedId == targetId) return
+        val all = bookDao.getAll()
+        val target = all.firstOrNull { it.id == targetId } ?: return
+        val dragged = all.firstOrNull { it.id == draggedId } ?: return
+        val ordering = com.abosalehg.khizana.util.manualThenNaturalComparator<BookEntity>(
+            { it.manualOrder }, { it.title }
+        )
+        val shelfBooks = all
+            .filter {
+                it.topicId == target.topicId && !it.isHidden &&
+                    it.status != BookStatus.MISSING.name && it.id != draggedId
+            }
+            .sortedWith(ordering)
+            .toMutableList()
+        val insertAt = shelfBooks.indexOfFirst { it.id == targetId }.coerceAtLeast(0)
+        shelfBooks.add(insertAt, dragged)
+        if (dragged.topicId != target.topicId) bookDao.updateTopic(draggedId, target.topicId)
+        shelfBooks.forEachIndexed { index, book ->
+            if (book.manualOrder != index + 1) bookDao.updateManualOrder(book.id, index + 1)
+        }
+    }
+
     suspend fun renameTopic(topicId: Long, name: String) {
         val trimmed = name.trim()
         if (trimmed.isNotEmpty()) topicDao.rename(topicId, trimmed)

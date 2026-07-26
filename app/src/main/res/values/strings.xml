@@ -63,6 +63,8 @@
     <string name="delete_book">Delete from device</string>
     <string name="delete_book_message">“%1$s” will be permanently deleted from your device, along with its reading data. This cannot be undone.</string>
     <string name="delete_book_failed">Couldn’t delete the file.</string>
+    <string name="continue_reading">Continue reading</string>
+    <string name="search_hint">Search your library…</string>
     <string name="status_protected">Password-protected</string>
     <string name="status_corrupt">Damaged file</string>
 </resources>

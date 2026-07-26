@@ -49,6 +49,14 @@ class CbzCoverTest {
     }
 
     @Test
+    fun `unpadded page numbers sort naturally`() {
+        assertEquals(
+            listOf("vol_2.jpg", "vol_10.jpg"),
+            CbzCover.sortedImageEntries(listOf("vol_10.jpg", "vol_2.jpg"))
+        )
+    }
+
+    @Test
     fun `image count ignores non-image entries`() {
         val entries = listOf("1.jpg", "2.png", "sub/3.gif", "readme.txt", "sub/")
         assertEquals(3, CbzCover.countImages(entries))

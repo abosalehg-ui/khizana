@@ -12,6 +12,8 @@ import com.abosalehg.khizana.data.scanner.StoragePermission
 import com.abosalehg.khizana.data.settings.SettingsRepository
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.repo.LibraryRepository
+import com.abosalehg.khizana.util.matchesSearch
+import com.abosalehg.khizana.util.normalizeForSearch
 import com.abosalehg.khizana.work.ScanWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -48,6 +50,9 @@ class LibraryViewModel @Inject constructor(
     private val _selectedTagId = MutableStateFlow<Long?>(null)
     val selectedTagId: StateFlow<Long?> = _selectedTagId
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery
+
     val tags = repository.tags
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -56,12 +61,25 @@ class LibraryViewModel @Inject constructor(
             repository.topics,
             repository.visibleBooks,
             repository.bookTagRefs,
-            _selectedTagId
-        ) { topics, books, refs, tagId ->
-            val filterIds = tagId?.let { id ->
-                refs.filter { it.tagId == id }.mapTo(HashSet()) { it.bookId }
+            _selectedTagId,
+            _searchQuery
+        ) { topics, books, refs, tagId, query ->
+            var shelves = buildShelves(topics, books)
+            tagId?.let { id ->
+                val tagged = refs.filter { it.tagId == id }.mapTo(HashSet()) { it.bookId }
+                shelves = filterShelvesByBookIds(shelves, tagged)
             }
-            filterShelvesByBookIds(buildShelves(topics, books), filterIds)
+            val trimmed = query.trim()
+            if (trimmed.isNotEmpty()) {
+                val normalized = normalizeForSearch(trimmed)
+                val matching = books.filter { book ->
+                    matchesSearch(book.title, normalized) ||
+                        matchesSearch(book.fileName, normalized) ||
+                        (book.author?.let { matchesSearch(it, normalized) } == true)
+                }.mapTo(HashSet()) { it.id }
+                shelves = filterShelvesByBookIds(shelves, matching)
+            }
+            shelves
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _permissionGranted = MutableStateFlow(StoragePermission.isGranted(context))
@@ -116,6 +134,16 @@ class LibraryViewModel @Inject constructor(
 
     fun selectTag(tagId: Long?) {
         _selectedTagId.value = tagId
+    }
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    /** Drop of a dragged book onto another book: insert before it. */
+    fun dropOnBook(draggedId: String, target: Book) {
+        if (draggedId == target.id) return
+        viewModelScope.launch { repository.reorderBook(draggedId, target.id) }
     }
 
     /** Loads the book's current tag ids for the tag dialog. */
