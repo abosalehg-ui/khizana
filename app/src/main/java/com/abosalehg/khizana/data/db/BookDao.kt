@@ -51,4 +51,13 @@ interface BookDao {
 
     @Query("UPDATE books SET topicId = :topicId WHERE id = :id")
     suspend fun updateTopic(id: String, topicId: Long?)
+
+    @Query(
+        "UPDATE books SET locator = :locator, progress = :progress, lastReadAt = :lastReadAt " +
+            "WHERE id = :id"
+    )
+    suspend fun saveReadingPosition(id: String, locator: String, progress: Float, lastReadAt: Long)
+
+    @Query("UPDATE books SET pageCount = :pageCount WHERE id = :id")
+    suspend fun updatePageCount(id: String, pageCount: Int)
 }

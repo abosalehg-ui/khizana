@@ -21,6 +21,11 @@
     <string name="action_add">إضافة</string>
     <string name="action_cancel">إلغاء</string>
     <string name="empty_shelf_hint">اسحب كتاباً إلى هنا</string>
+    <string name="action_back">رجوع</string>
+    <string name="reader_protected">هذا الكتاب محمي بكلمة مرور ولا يمكن فتحه بعد.</string>
+    <string name="reader_corrupt">تعذّر فتح هذا الملف — يبدو تالفاً.</string>
+    <string name="reader_missing">ملف الكتاب غير موجود في التخزين.</string>
+    <string name="reader_page_failed">تعذّر عرض هذه الصفحة.</string>
     <string name="status_protected">محمي بكلمة مرور</string>
     <string name="status_corrupt">ملف تالف</string>
 </resources>
