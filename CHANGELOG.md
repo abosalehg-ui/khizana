@@ -6,6 +6,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### M4 — The reader: PDF/CBZ pages, direction & saved position
+
+- Tapping a book opens the full-screen reader (Navigation Compose: `library` → `reader/{bookId}`).
+- `CbzEngine` completes the engine pair: pages are the archive's image entries in reading order (alphabetical until natural ordering lands), decoded with downsampling; `EngineFactory` picks the engine by format.
+- Swipe paging via `HorizontalPager` with neighbor pre-rendering; all engine work runs on a single dedicated thread (Pdfium isn't thread-safe, and close() can never race a render).
+- Reading direction per book: RTL/LTR/AUTO, where AUTO detects Arabic characters in the title — RTL books page right-to-left.
+- Position and progress persist on every page turn (`locator` as String, progress 0..1 with the pageCount 0/1 edge cases handled); covers now show a thin progress bar.
+- Opening a book self-heals its status: PROTECTED/CORRUPT set on failure, restored to OK when it opens fine; page counts corrected from the real engine count.
+- Page indicator always uses Western digits, per spec; tap toggles the reader top bar.
+- Unit tests: progress math edge cases, direction resolution (Arabic/Latin/mixed/explicit), CBZ reading order.
+
 ### M3 — Wooden shelves, "New ⭐" shelf & drag-and-drop
 
 - Real shelf UI: books stand as cover spines on wood-grain planks, grouped by topic, with the special "New ⭐" shelf always first (`topicId = null`).

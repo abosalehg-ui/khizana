@@ -126,7 +126,7 @@ class LibraryRepository @Inject constructor(
     )
 }
 
-private fun BookEntity.toDomain(): Book = Book(
+internal fun BookEntity.toDomain(): Book = Book(
     id = id,
     path = path,
     fileName = fileName,

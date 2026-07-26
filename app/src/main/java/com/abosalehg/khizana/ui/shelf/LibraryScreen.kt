@@ -74,6 +74,7 @@ import java.io.File
 fun LibraryScreen(
     themeMode: ThemeMode,
     onCycleThemeMode: () -> Unit,
+    onOpenBook: (Book) -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val shelves by viewModel.shelves.collectAsStateWithLifecycle()
@@ -148,7 +149,8 @@ fun LibraryScreen(
                 items(shelves, key = { it.topicId ?: -1L }) { shelf ->
                     ShelfSection(
                         shelf = shelf,
-                        onMoveBook = viewModel::moveBook
+                        onMoveBook = viewModel::moveBook,
+                        onOpenBook = onOpenBook
                     )
                 }
             }
@@ -186,7 +188,8 @@ private fun AddTopicDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
 @Composable
 private fun ShelfSection(
     shelf: Shelf,
-    onMoveBook: (bookId: String, topicId: Long?) -> Unit
+    onMoveBook: (bookId: String, topicId: Long?) -> Unit,
+    onOpenBook: (Book) -> Unit
 ) {
     val tokens = LocalWoodTokens.current
     var isHovered by remember { mutableStateOf(false) }
@@ -274,7 +277,7 @@ private fun ShelfSection(
                 modifier = Modifier.height(120.dp)
             ) {
                 items(shelf.books, key = { it.id }) { book ->
-                    BookSpine(book)
+                    BookSpine(book, onOpen = { onOpenBook(book) })
                 }
             }
         }
@@ -288,18 +291,21 @@ private fun ShelfSection(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun BookSpine(book: Book) {
+private fun BookSpine(book: Book, onOpen: () -> Unit) {
     Column(
         modifier = Modifier
             .width(76.dp)
             .dragAndDropSource {
-                detectTapGestures(onLongPress = {
-                    startTransfer(
-                        DragAndDropTransferData(
-                            ClipData.newPlainText("bookId", book.id)
+                detectTapGestures(
+                    onTap = { onOpen() },
+                    onLongPress = {
+                        startTransfer(
+                            DragAndDropTransferData(
+                                ClipData.newPlainText("bookId", book.id)
+                            )
                         )
-                    )
-                })
+                    }
+                )
             },
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -325,6 +331,14 @@ private fun BookSpine(book: Book) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+        if (book.progress > 0f) {
+            LinearProgressIndicator(
+                progress = { book.progress },
+                modifier = Modifier
+                    .width(72.dp)
+                    .height(3.dp)
+            )
         }
         StatusBadge(book.status)
         Text(

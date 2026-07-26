@@ -40,6 +40,15 @@ class CbzCoverTest {
     }
 
     @Test
+    fun `sorted entries follow case-insensitive alphabetical reading order`() {
+        val entries = listOf("B/page2.jpg", "a/Page1.jpg", "a/page10.jpg", "cover.png")
+        assertEquals(
+            listOf("a/Page1.jpg", "a/page10.jpg", "B/page2.jpg", "cover.png"),
+            CbzCover.sortedImageEntries(entries)
+        )
+    }
+
+    @Test
     fun `image count ignores non-image entries`() {
         val entries = listOf("1.jpg", "2.png", "sub/3.gif", "readme.txt", "sub/")
         assertEquals(3, CbzCover.countImages(entries))

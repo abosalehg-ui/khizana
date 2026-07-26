@@ -60,7 +60,7 @@ class BookDaoRescanTest {
         assertEquals("/new/place/renamed.pdf", book.path)
         assertTrue(book.isHidden)
         assertEquals("42", book.locator)
-        assertEquals(0.5f, book.progress)
+        assertEquals(0.5f, book.progress, 0f)
     }
 
     @Test
@@ -89,7 +89,7 @@ class BookDaoRescanTest {
         val book = dao.getById("fp2")!!
         assertEquals("OK", book.status)
         assertEquals("7", book.locator)
-        assertEquals(0.25f, book.progress)
+        assertEquals(0.25f, book.progress, 0f)
     }
 
     @Test

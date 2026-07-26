@@ -21,6 +21,11 @@
     <string name="action_add">Add</string>
     <string name="action_cancel">Cancel</string>
     <string name="empty_shelf_hint">Drag a book here</string>
+    <string name="action_back">Back</string>
+    <string name="reader_protected">This book is password-protected and can’t be opened yet.</string>
+    <string name="reader_corrupt">This file couldn’t be opened — it appears damaged.</string>
+    <string name="reader_missing">The book file is missing from storage.</string>
+    <string name="reader_page_failed">Couldn’t display this page.</string>
     <string name="status_protected">Password-protected</string>
     <string name="status_corrupt">Damaged file</string>
 </resources>

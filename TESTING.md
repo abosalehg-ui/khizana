@@ -15,11 +15,22 @@ Current coverage (grows with each milestone):
 | Hidden state & progress survive relocation / MISSING round-trip (instrumented) | `BookDaoRescanTest` | M1 |
 | CBZ cover entry selection, image detection, downsample math | `CbzCoverTest` | M2 |
 | Shelf grouping: New-shelf-first, topic order, orphan fallback | `ShelvesTest` | M3 |
+| Progress math (pageCount 0/1, clamping) & direction resolution | `ReadingTest` | M4 |
+| CBZ reading order (case-insensitive alphabetical) | `CbzCoverTest` | M4 |
 
 Planned (from the project spec): `NaturalOrderComparator` (M8),
-spread mapping RTL/LTR (M5), progress with `pageCount = 0/1` (M4).
+spread mapping RTL/LTR (M5).
 
 ## Manual checklist
+
+### M4
+- [ ] Tapping a book opens it full-screen; swiping turns pages.
+- [ ] An Arabic-titled book pages right-to-left; an English-titled one left-to-right.
+- [ ] Close the app mid-book, reopen → the reader resumes on the same page.
+- [ ] The cover shows a progress bar after reading; finishing the last page fills it.
+- [ ] A CBZ opens and shows its images in order.
+- [ ] Page indicator uses Western digits (1 / 250) even in the Arabic locale.
+- [ ] Tap toggles the top bar; back returns to the shelves.
 
 ### M3
 - [ ] Books appear standing on wooden planks, grouped by shelf, with «جديد ⭐» first.

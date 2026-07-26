@@ -23,9 +23,16 @@ object CbzCover {
         return fileName.substringAfterLast('.', "").lowercase() in IMAGE_EXTENSIONS
     }
 
+    /**
+     * Image entries in reading order (case-insensitive alphabetical for now;
+     * natural ordering with numbers arrives in a later milestone).
+     */
+    fun sortedImageEntries(entryNames: List<String>): List<String> =
+        entryNames.filter(::isImageEntry).sortedBy { it.lowercase() }
+
     /** Picks the cover entry from a list of archive entry names. */
     fun pickCoverEntry(entryNames: List<String>): String? =
-        entryNames.filter(::isImageEntry).minByOrNull { it.lowercase() }
+        sortedImageEntries(entryNames).firstOrNull()
 
     fun countImages(entryNames: List<String>): Int = entryNames.count(::isImageEntry)
 
