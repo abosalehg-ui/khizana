@@ -1,8 +1,17 @@
 <resources>
     <string name="app_name">خِزانة</string>
-    <string name="shelf_placeholder_tagline">مكتبتك الخاصة على رفوف خشبية. بلا إنترنت، بلا تتبّع.</string>
     <string name="theme_mode_label">المظهر: %1$s</string>
     <string name="theme_mode_system">تلقائي</string>
     <string name="theme_mode_light">فاتح</string>
     <string name="theme_mode_dark">غامق</string>
+
+    <string name="permission_title">الوصول لملفاتك</string>
+    <string name="permission_rationale">تحتاج خِزانة إذن «الوصول لكل الملفات» لغرض واحد: العثور على ملفات كتبك (PDF وCBZ) أينما كانت في جهازك وفتحها مباشرة. التطبيق لا يملك إذن الإنترنت أصلاً، فلا يخرج أي شيء من جهازك. ملاحظة: نظام أندرويد نفسه يمنع الوصول إلى مجلدي Android/data وAndroid/obb — لا يستطيع أي تطبيق قراءتهما.</string>
+    <string name="permission_grant">امنح الإذن</string>
+
+    <string name="scan_now">افحص المكتبة</string>
+    <string name="scanning_progress">جاري الفحص… %1$d / %2$d</string>
+    <string name="scan_report">تم فحص %1$d ملفاً: %2$d جديد، %3$d محدَّث، %4$d مفقود</string>
+    <string name="books_count">الكتب: %1$d</string>
+    <string name="empty_library">لا كتب بعد. اضغط «افحص المكتبة» للعثور على ملفات PDF وCBZ في جهازك.</string>
 </resources>

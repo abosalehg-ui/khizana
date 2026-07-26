@@ -15,6 +15,8 @@ workManager = "2.10.0"
 coil = "3.0.4"
 junit = "4.13.2"
 androidxJunit = "1.2.1"
+androidxTestCore = "1.6.1"
+androidxTestRunner = "1.6.2"
 espresso = "3.6.1"
 
 [libraries]
@@ -54,6 +56,8 @@ coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref 
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
+androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTestCore" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 
 [plugins]

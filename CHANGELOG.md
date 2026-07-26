@@ -6,6 +6,17 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### M1 — Permissions, scanning, fingerprint & Room
+
+- Room database (v1): books, topics, tags, book_tags, bookmarks, excluded_folders — schema exactly as specified, reading position stored as a String locator from day one.
+- Content fingerprint identity: `SHA-256(fileSize + first 64 KB)`; moving or renaming a file never creates a duplicate row and never loses progress/hidden state.
+- Manual library scan (never automatic): fast MediaStore query by extension, plus a recursive deep-scan path; excluded-folder filtering with exact-prefix semantics.
+- Rescan contract: new fingerprints inserted to the "New ⭐" shelf (`topicId = null`), known fingerprints get their path refreshed in place, vanished files are silently marked `MISSING` — rows are never deleted.
+- All Files Access permission flow: Android 11+ settings screen (`MANAGE_EXTERNAL_STORAGE`) with an in-app rationale, Android 10 legacy read-permission fallback.
+- `ScanWorker` (Hilt + WorkManager, on-demand init): unique cancellable background scan with live progress.
+- Temporary M1 library screen: permission gate, scan button with progress and report, plain list of found books (real shelves arrive in M3).
+- Unit tests: fingerprint identity properties, excluded-path filtering. Instrumented tests: hidden state and progress survive relocation and MISSING round-trips.
+
 ### M0 — Project skeleton, theme & identity
 
 - Gradle project with Kotlin 2.1, AGP 8.7, version catalog (`libs.versions.toml`).
