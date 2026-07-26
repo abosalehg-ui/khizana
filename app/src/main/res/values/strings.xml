@@ -15,6 +15,12 @@
     <string name="books_count">Books: %1$d</string>
     <string name="empty_library">No books yet. Tap “Scan library” to find the PDF and CBZ files on your device.</string>
     <string name="pages_count">%1$d pages</string>
+    <string name="shelf_new">New ⭐</string>
+    <string name="add_topic">New shelf</string>
+    <string name="topic_name_hint">Shelf name</string>
+    <string name="action_add">Add</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="empty_shelf_hint">Drag a book here</string>
     <string name="status_protected">Password-protected</string>
     <string name="status_corrupt">Damaged file</string>
 </resources>

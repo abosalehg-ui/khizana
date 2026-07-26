@@ -8,7 +8,6 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.abosalehg.khizana.data.scanner.StoragePermission
-import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.repo.LibraryRepository
 import com.abosalehg.khizana.work.ScanWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -16,8 +15,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class ScanUiState(
@@ -33,13 +34,15 @@ data class ScanUiState(
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    repository: LibraryRepository
+    private val repository: LibraryRepository
 ) : ViewModel() {
 
     private val workManager = WorkManager.getInstance(context)
 
-    val books: StateFlow<List<Book>> = repository.visibleBooks
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val shelves: StateFlow<List<Shelf>> =
+        combine(repository.topics, repository.visibleBooks) { topics, books ->
+            buildShelves(topics, books)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _permissionGranted = MutableStateFlow(StoragePermission.isGranted(context))
     val permissionGranted: StateFlow<Boolean> = _permissionGranted
@@ -60,6 +63,14 @@ class LibraryViewModel @Inject constructor(
             ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<ScanWorker>().build()
         )
+    }
+
+    fun addTopic(name: String) {
+        viewModelScope.launch { repository.addTopic(name) }
+    }
+
+    fun moveBook(bookId: String, topicId: Long?) {
+        viewModelScope.launch { repository.moveBookToTopic(bookId, topicId) }
     }
 
     private fun WorkInfo?.toUiState(): ScanUiState {

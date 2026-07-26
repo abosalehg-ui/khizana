@@ -6,6 +6,13 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### M3 — Wooden shelves, "New ⭐" shelf & drag-and-drop
+
+- Real shelf UI: books stand as cover spines on wood-grain planks, grouped by topic, with the special "New ⭐" shelf always first (`topicId = null`).
+- Drag & drop with Compose's dragAndDropSource/Target: long-press a book and drop it on any shelf to move it; the hovered shelf glows with a gold border. Empty shelves stay visible as drop targets («اسحب كتاباً إلى هنا»).
+- Shelf creation from the library screen (رف جديد); books pointing at a deleted/unknown topic safely fall back to the New shelf.
+- Unit tests for the pure shelf-grouping logic (`buildShelves`).
+
 ### M2 — PDF engine, covers & cache
 
 - `BookEngine` abstraction (open/pageCount/renderPage/close) with `PdfEngine` backed by Pdfium (`com.github.mhiew:pdfium-android`); EPUB slots in behind the same interface later.
