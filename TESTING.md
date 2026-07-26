@@ -14,11 +14,19 @@ Current coverage (grows with each milestone):
 | Excluded-folder filtering (subpath vs similar-named sibling) | `ExcludedPathFilterTest` | M1 |
 | Hidden state & progress survive relocation / MISSING round-trip (instrumented) | `BookDaoRescanTest` | M1 |
 | CBZ cover entry selection, image detection, downsample math | `CbzCoverTest` | M2 |
+| Shelf grouping: New-shelf-first, topic order, orphan fallback | `ShelvesTest` | M3 |
 
 Planned (from the project spec): `NaturalOrderComparator` (M8),
 spread mapping RTL/LTR (M5), progress with `pageCount = 0/1` (M4).
 
 ## Manual checklist
+
+### M3
+- [ ] Books appear standing on wooden planks, grouped by shelf, with «جديد ⭐» first.
+- [ ] «رف جديد» creates an empty shelf that shows immediately with the drag hint.
+- [ ] Long-press a book and drag it to another shelf → it moves there; the target shelf shows a gold highlight while hovering.
+- [ ] Moving a book, then rescanning, keeps it on its shelf.
+- [ ] RTL: shelf rows flow right-to-left in the Arabic locale.
 
 ### M2
 - [ ] After a scan finishes, covers appear for PDF and CBZ books without further taps.

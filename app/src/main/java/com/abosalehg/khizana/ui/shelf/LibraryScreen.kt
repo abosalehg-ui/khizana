@@ -1,10 +1,16 @@
 package com.abosalehg.khizana.ui.shelf
 
-import android.text.format.Formatter
+import android.content.ClipData
+import android.content.ClipDescription
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.draganddrop.dragAndDropSource
+import androidx.compose.foundation.draganddrop.dragAndDropTarget
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,25 +22,37 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draganddrop.DragAndDropEvent
+import androidx.compose.ui.draganddrop.DragAndDropTarget
+import androidx.compose.ui.draganddrop.DragAndDropTransferData
+import androidx.compose.ui.draganddrop.mimeTypes
+import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -49,8 +67,8 @@ import com.abosalehg.khizana.ui.theme.LocalWoodTokens
 import java.io.File
 
 /**
- * M1 library screen: permission gate, manual scan and a plain list of found
- * books. Replaced by the real wooden shelves in M3.
+ * M3 library screen: wooden shelves grouped by topic with the "New ⭐" shelf
+ * first, drag & drop to move books between shelves, and shelf creation.
  */
 @Composable
 fun LibraryScreen(
@@ -58,9 +76,10 @@ fun LibraryScreen(
     onCycleThemeMode: () -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
-    val books by viewModel.books.collectAsStateWithLifecycle()
+    val shelves by viewModel.shelves.collectAsStateWithLifecycle()
     val permissionGranted by viewModel.permissionGranted.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    var showAddTopic by remember { mutableStateOf(false) }
 
     // The grant happens in system settings — re-check whenever we come back.
     LifecycleResumeEffect(Unit) {
@@ -68,60 +87,269 @@ fun LibraryScreen(
         onPauseOrDispose { }
     }
 
+    if (showAddTopic) {
+        AddTopicDialog(
+            onConfirm = { name ->
+                viewModel.addTopic(name)
+                showAddTopic = false
+            },
+            onDismiss = { showAddTopic = false }
+        )
+    }
+
     Scaffold { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp)
+                .padding(innerPadding),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 24.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(R.string.app_name),
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                TextButton(onClick = onCycleThemeMode) {
-                    Text(
-                        text = stringResource(
-                            R.string.theme_mode_label,
-                            stringResource(themeMode.labelRes())
+            item(key = "header") {
+                Column(Modifier.padding(horizontal = 20.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = MaterialTheme.colorScheme.onBackground
                         )
-                    )
+                        TextButton(onClick = onCycleThemeMode) {
+                            Text(
+                                text = stringResource(
+                                    R.string.theme_mode_label,
+                                    stringResource(themeMode.labelRes())
+                                )
+                            )
+                        }
+                    }
                 }
             }
-            ShelfPlank(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(14.dp)
-            )
-            Spacer(Modifier.height(20.dp))
 
             if (!permissionGranted) {
-                PermissionCard(onGranted = viewModel::refreshPermission)
+                item(key = "permission") {
+                    Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+                        PermissionCard(onGranted = viewModel::refreshPermission)
+                    }
+                }
             } else {
-                ScanSection(
-                    scanState = scanState,
-                    bookCount = books.size,
-                    onScanClick = viewModel::startScan
-                )
-                Spacer(Modifier.height(12.dp))
-                if (books.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.empty_library),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                item(key = "scan") {
+                    Column(Modifier.padding(horizontal = 20.dp)) {
+                        ScanSection(
+                            scanState = scanState,
+                            bookCount = shelves.sumOf { it.books.size },
+                            onScanClick = viewModel::startScan,
+                            onAddTopicClick = { showAddTopic = true }
+                        )
+                    }
+                }
+                items(shelves, key = { it.topicId ?: -1L }) { shelf ->
+                    ShelfSection(
+                        shelf = shelf,
+                        onMoveBook = viewModel::moveBook
                     )
-                } else {
-                    BookList(books)
                 }
             }
         }
     }
+}
+
+@Composable
+private fun AddTopicDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.add_topic)) },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text(stringResource(R.string.topic_name_hint)) },
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name) },
+                enabled = name.isNotBlank()
+            ) { Text(stringResource(R.string.action_add)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ShelfSection(
+    shelf: Shelf,
+    onMoveBook: (bookId: String, topicId: Long?) -> Unit
+) {
+    val tokens = LocalWoodTokens.current
+    var isHovered by remember { mutableStateOf(false) }
+    val dropTarget = remember(shelf.topicId) {
+        object : DragAndDropTarget {
+            override fun onEntered(event: DragAndDropEvent) {
+                isHovered = true
+            }
+
+            override fun onExited(event: DragAndDropEvent) {
+                isHovered = false
+            }
+
+            override fun onEnded(event: DragAndDropEvent) {
+                isHovered = false
+            }
+
+            override fun onDrop(event: DragAndDropEvent): Boolean {
+                isHovered = false
+                val clip = event.toAndroidDragEvent().clipData ?: return false
+                val bookId = (0 until clip.itemCount)
+                    .firstNotNullOfOrNull { clip.getItemAt(it).text?.toString() }
+                    ?: return false
+                onMoveBook(bookId, shelf.topicId)
+                return true
+            }
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 16.dp)
+            .dragAndDropTarget(
+                shouldStartDragAndDrop = { event ->
+                    event.mimeTypes().contains(ClipDescription.MIMETYPE_TEXT_PLAIN)
+                },
+                target = dropTarget
+            )
+            .then(
+                if (isHovered) {
+                    Modifier.border(2.dp, tokens.goldSoft, RoundedCornerShape(8.dp))
+                } else {
+                    Modifier
+                }
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = shelf.name ?: stringResource(R.string.shelf_new),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = shelf.books.size.toString(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        if (shelf.books.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.empty_shelf_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyRow(
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Bottom,
+                modifier = Modifier.height(120.dp)
+            ) {
+                items(shelf.books, key = { it.id }) { book ->
+                    BookSpine(book)
+                }
+            }
+        }
+        ShelfPlank(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun BookSpine(book: Book) {
+    Column(
+        modifier = Modifier
+            .width(76.dp)
+            .dragAndDropSource {
+                detectTapGestures(onLongPress = {
+                    startTransfer(
+                        DragAndDropTransferData(
+                            ClipData.newPlainText("bookId", book.id)
+                        )
+                    )
+                })
+            },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        val coverModifier = Modifier
+            .width(72.dp)
+            .height(98.dp)
+            .clip(RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp))
+        if (book.coverPath != null) {
+            AsyncImage(
+                model = File(book.coverPath),
+                contentDescription = book.title,
+                contentScale = ContentScale.Crop,
+                modifier = coverModifier
+            )
+        } else {
+            Box(
+                modifier = coverModifier.background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = book.title.take(1),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        StatusBadge(book.status)
+        Text(
+            text = book.title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun StatusBadge(status: BookStatus) {
+    val label = when (status) {
+        BookStatus.PROTECTED -> stringResource(R.string.status_protected)
+        BookStatus.CORRUPT -> stringResource(R.string.status_corrupt)
+        else -> return
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.error,
+        maxLines = 1
+    )
 }
 
 @Composable
@@ -160,7 +388,8 @@ private fun PermissionCard(onGranted: () -> Unit) {
 private fun ScanSection(
     scanState: ScanUiState,
     bookCount: Int,
-    onScanClick: () -> Unit
+    onScanClick: () -> Unit,
+    onAddTopicClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -171,8 +400,14 @@ private fun ScanSection(
             text = stringResource(R.string.books_count, bookCount),
             style = MaterialTheme.typography.titleMedium
         )
-        Button(onClick = onScanClick, enabled = !scanState.running) {
-            Text(stringResource(R.string.scan_now))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onAddTopicClick) {
+                Text(stringResource(R.string.add_topic))
+            }
+            Spacer(Modifier.width(4.dp))
+            Button(onClick = onScanClick, enabled = !scanState.running) {
+                Text(stringResource(R.string.scan_now))
+            }
         }
     }
     if (scanState.running) {
@@ -210,90 +445,13 @@ private fun ScanSection(
     }
 }
 
-@Composable
-private fun BookList(books: List<Book>) {
-    val context = LocalContext.current
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(books, key = { it.id }) { book ->
-            Card(Modifier.fillMaxWidth()) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CoverThumb(book)
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = book.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1
-                        )
-                        val pages = if (book.pageCount > 0) {
-                            stringResource(R.string.pages_count, book.pageCount) + " · "
-                        } else ""
-                        Text(
-                            text = "${book.format.name} · " + pages +
-                                Formatter.formatShortFileSize(context, book.fileSize),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        StatusBadge(book.status)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusBadge(status: BookStatus) {
-    val label = when (status) {
-        BookStatus.PROTECTED -> stringResource(R.string.status_protected)
-        BookStatus.CORRUPT -> stringResource(R.string.status_corrupt)
-        else -> return
-    }
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.error
-    )
-}
-
-@Composable
-private fun CoverThumb(book: Book) {
-    val modifier = Modifier
-        .width(48.dp)
-        .height(64.dp)
-        .clip(RoundedCornerShape(4.dp))
-    if (book.coverPath != null) {
-        AsyncImage(
-            model = File(book.coverPath),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = modifier
-        )
-    } else {
-        // Placeholder until CoverWorker gets to this book (or if it failed).
-        Box(
-            modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = book.title.take(1),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
 private fun ThemeMode.labelRes(): Int = when (this) {
     ThemeMode.SYSTEM -> R.string.theme_mode_system
     ThemeMode.LIGHT -> R.string.theme_mode_light
     ThemeMode.DARK -> R.string.theme_mode_dark
 }
 
-/** A single wooden plank — identity element kept from M0. */
+/** A single wooden plank — the shelf surface books stand on. */
 @Composable
 private fun ShelfPlank(modifier: Modifier = Modifier) {
     val tokens = LocalWoodTokens.current

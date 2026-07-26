@@ -15,6 +15,12 @@
     <string name="books_count">الكتب: %1$d</string>
     <string name="empty_library">لا كتب بعد. اضغط «افحص المكتبة» للعثور على ملفات PDF وCBZ في جهازك.</string>
     <string name="pages_count">%1$d صفحة</string>
+    <string name="shelf_new">جديد ⭐</string>
+    <string name="add_topic">رف جديد</string>
+    <string name="topic_name_hint">اسم الرف</string>
+    <string name="action_add">إضافة</string>
+    <string name="action_cancel">إلغاء</string>
+    <string name="empty_shelf_hint">اسحب كتاباً إلى هنا</string>
     <string name="status_protected">محمي بكلمة مرور</string>
     <string name="status_corrupt">ملف تالف</string>
 </resources>

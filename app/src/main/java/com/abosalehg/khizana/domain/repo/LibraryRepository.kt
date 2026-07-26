@@ -3,12 +3,15 @@ package com.abosalehg.khizana.domain.repo
 import com.abosalehg.khizana.data.db.BookDao
 import com.abosalehg.khizana.data.db.BookEntity
 import com.abosalehg.khizana.data.db.ExcludedFolderDao
+import com.abosalehg.khizana.data.db.TopicDao
+import com.abosalehg.khizana.data.db.TopicEntity
 import com.abosalehg.khizana.data.scanner.FileFingerprint
 import com.abosalehg.khizana.data.scanner.LibraryScanner
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.BookFormat
 import com.abosalehg.khizana.domain.model.BookStatus
 import com.abosalehg.khizana.domain.model.ReadingDirection
+import com.abosalehg.khizana.domain.model.Topic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -26,6 +29,7 @@ data class ScanReport(
 @Singleton
 class LibraryRepository @Inject constructor(
     private val bookDao: BookDao,
+    private val topicDao: TopicDao,
     private val excludedFolderDao: ExcludedFolderDao,
     private val scanner: LibraryScanner
 ) {
@@ -33,6 +37,19 @@ class LibraryRepository @Inject constructor(
     /** Books the shelves can show (not hidden, present on disk). */
     val visibleBooks: Flow<List<Book>> =
         bookDao.observeVisible().map { entities -> entities.map { it.toDomain() } }
+
+    val topics: Flow<List<Topic>> =
+        topicDao.observeAll().map { entities ->
+            entities.map { Topic(id = it.id, name = it.name, order = it.order) }
+        }
+
+    suspend fun addTopic(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isNotEmpty()) topicDao.insert(TopicEntity(name = trimmed))
+    }
+
+    suspend fun moveBookToTopic(bookId: String, topicId: Long?) =
+        bookDao.updateTopic(bookId, topicId)
 
     /**
      * Full manual rescan. Never deletes rows: new fingerprints are inserted,
