@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Default cloud-backup and device-transfer rules. Cover images live in
+     cacheDir, which Android never includes in backups or transfers. -->
 <data-extraction-rules>
-    <cloud-backup>
-        <exclude domain="cache" path="covers/" />
-    </cloud-backup>
-    <device-transfer>
-        <exclude domain="cache" path="covers/" />
-    </device-transfer>
+    <cloud-backup />
+    <device-transfer />
 </data-extraction-rules>

@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<full-backup-content>
-    <!-- Covers are a regenerable cache; exclude them from backups. -->
-    <exclude domain="cache" path="covers/" />
-</full-backup-content>
+<!-- Default full backup. Cover images live in cacheDir, which Android
+     never includes in backups, so no exclude rules are needed. -->
+<full-backup-content />
