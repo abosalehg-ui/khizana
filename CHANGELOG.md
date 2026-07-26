@@ -6,6 +6,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### M2 — PDF engine, covers & cache
+
+- `BookEngine` abstraction (open/pageCount/renderPage/close) with `PdfEngine` backed by Pdfium (`com.github.mhiew:pdfium-android`); EPUB slots in behind the same interface later.
+- Opening a file classifies it: password-protected PDFs → `PROTECTED`, unparseable files → `CORRUPT` — shown as badges, the app never crashes on them.
+- `CoverGenerator` + `CoverWorker` (chained automatically after every scan): renders page 1 of each PDF at 480 px into `filesDir/covers/{id}.jpg` (atomic temp-file write), records page counts as a side effect, and marks unrenderable books `coverFailed` instead of retrying forever.
+- CBZ covers without a full engine yet: first image entry (alphabetical) from the ZIP, downsampled decode; image count doubles as page count. `__MACOSX/`, hidden files, and directories are ignored.
+- Library list now shows cover thumbnails (Coil), page counts, and protected/damaged badges.
+- Unit tests: CBZ cover-entry selection, image detection, downsample math.
+
 ### M1 — Permissions, scanning, fingerprint & Room
 
 - Room database (v1): books, topics, tags, book_tags, bookmarks, excluded_folders — schema exactly as specified, reading position stored as a String locator from day one.

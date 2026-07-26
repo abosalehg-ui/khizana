@@ -4,7 +4,9 @@ import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,8 +14,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
@@ -25,19 +29,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.abosalehg.khizana.R
 import com.abosalehg.khizana.data.scanner.StoragePermission
 import com.abosalehg.khizana.domain.model.Book
+import com.abosalehg.khizana.domain.model.BookStatus
 import com.abosalehg.khizana.domain.model.ThemeMode
 import com.abosalehg.khizana.ui.theme.LocalWoodTokens
+import java.io.File
 
 /**
  * M1 library screen: permission gate, manual scan and a plain list of found
@@ -207,20 +216,73 @@ private fun BookList(books: List<Book>) {
     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items(books, key = { it.id }) { book ->
             Card(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                    Text(
-                        text = book.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        maxLines = 1
-                    )
-                    Text(
-                        text = "${book.format.name} · " +
-                            Formatter.formatShortFileSize(context, book.fileSize),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CoverThumb(book)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = book.title,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1
+                        )
+                        val pages = if (book.pageCount > 0) {
+                            stringResource(R.string.pages_count, book.pageCount) + " · "
+                        } else ""
+                        Text(
+                            text = "${book.format.name} · " + pages +
+                                Formatter.formatShortFileSize(context, book.fileSize),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        StatusBadge(book.status)
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StatusBadge(status: BookStatus) {
+    val label = when (status) {
+        BookStatus.PROTECTED -> stringResource(R.string.status_protected)
+        BookStatus.CORRUPT -> stringResource(R.string.status_corrupt)
+        else -> return
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.error
+    )
+}
+
+@Composable
+private fun CoverThumb(book: Book) {
+    val modifier = Modifier
+        .width(48.dp)
+        .height(64.dp)
+        .clip(RoundedCornerShape(4.dp))
+    if (book.coverPath != null) {
+        AsyncImage(
+            model = File(book.coverPath),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = modifier
+        )
+    } else {
+        // Placeholder until CoverWorker gets to this book (or if it failed).
+        Box(
+            modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = book.title.take(1),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
