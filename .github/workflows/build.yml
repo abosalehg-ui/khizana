@@ -56,21 +56,27 @@ jobs:
   #
   # Requires the repository's "Dependency graph" setting to be on
   # (Settings -> Code security). Until it is, the action errors out with
-  # "Dependency review is not supported on this repository", which is a
-  # repository configuration gap and not a fault in the change under review —
-  # hence continue-on-error, so it reports rather than blocks. Remove that line
-  # once the setting is enabled and this becomes a real gate.
+  # "Dependency review is not supported on this repository" — a repository
+  # configuration gap, not a fault in the change under review — so the step
+  # is marked continue-on-error and the result is advisory.
+  #
+  # continue-on-error must sit on the *step*: at job level it keeps the
+  # workflow green but the check run itself still reports failure, which is
+  # exactly the red wall it is meant to avoid.
+  #
+  # Once Dependency graph is enabled, drop the continue-on-error line and this
+  # becomes a real gate.
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           fail-on-severity: high
 
