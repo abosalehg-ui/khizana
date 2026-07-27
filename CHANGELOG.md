@@ -6,6 +6,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Dropping a book anywhere on a populated shelf now works: the whole row is an
+  append target, with book covers keeping their precise insert-before
+  behaviour on top. Previously only an empty shelf accepted drops everywhere —
+  once it held books, the targets shrank to the covers themselves plus a
+  narrow slot after the last one, so the obvious "drop it on the shelf"
+  gesture did nothing. (Device feedback after v0.1.0 testing.)
+
 ### Hardening — review follow-up
 
 Security, correctness, performance, accessibility and documentation fixes from
