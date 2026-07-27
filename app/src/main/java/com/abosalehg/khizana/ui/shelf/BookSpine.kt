@@ -65,6 +65,7 @@ internal fun BookSpine(
     onOpen: () -> Unit,
     onHide: () -> Unit,
     onMove: () -> Unit,
+    onShare: () -> Unit,
     onTags: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -160,6 +161,13 @@ internal fun BookSpine(
                     onClick = {
                         menuOpen = false
                         onMove()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.share_book)) },
+                    onClick = {
+                        menuOpen = false
+                        onShare()
                     }
                 )
                 DropdownMenuItem(

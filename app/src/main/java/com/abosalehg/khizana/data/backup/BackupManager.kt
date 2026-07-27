@@ -6,6 +6,8 @@ import android.util.Log
 import com.abosalehg.khizana.data.db.BookDao
 import com.abosalehg.khizana.data.db.BookEntity
 import com.abosalehg.khizana.data.db.BookTagCrossRef
+import com.abosalehg.khizana.data.db.BookmarkDao
+import com.abosalehg.khizana.data.db.BookmarkEntity
 import com.abosalehg.khizana.data.db.ExcludedFolderDao
 import com.abosalehg.khizana.data.db.ExcludedFolderEntity
 import com.abosalehg.khizana.data.db.TagDao
@@ -40,6 +42,7 @@ class BackupManager @Inject constructor(
     private val topicDao: TopicDao,
     private val tagDao: TagDao,
     private val excludedFolderDao: ExcludedFolderDao,
+    private val bookmarkDao: BookmarkDao,
     private val transaction: TransactionRunner
 ) {
 
@@ -52,7 +55,9 @@ class BackupManager @Inject constructor(
                 tags = tagDao.observeAll().first().map { BackupTag(it.id, it.name) },
                 bookTags = tagDao.observeAllRefs().first()
                     .map { BackupRef(it.bookId, it.tagId) },
-                excludedFolders = excludedFolderDao.getAllPaths()
+                excludedFolders = excludedFolderDao.getAllPaths(),
+                bookmarks = bookmarkDao.getAll()
+                    .map { BackupBookmark(it.bookId, it.page, it.note, it.createdAt) }
             )
             val json = BackupSerializer.toJson(data)
             context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
@@ -165,6 +170,26 @@ class BackupManager @Inject constructor(
         data.bookTags.forEach { ref ->
             tagIdMap[ref.tagId]?.let { tagDao.addRef(BookTagCrossRef(ref.bookId, it)) }
         }
+
+        // One bookmark per page, here as everywhere: restoring twice, or over a
+        // device that already bookmarked the page, updates the note instead of
+        // stacking a duplicate.
+        data.bookmarks.forEach { bookmark ->
+            val existing = bookmarkDao.findAt(bookmark.bookId, bookmark.page)
+            if (existing == null) {
+                bookmarkDao.insert(
+                    BookmarkEntity(
+                        bookId = bookmark.bookId,
+                        page = bookmark.page,
+                        note = bookmark.note,
+                        createdAt = bookmark.createdAt
+                    )
+                )
+            } else if (existing.note != bookmark.note) {
+                bookmarkDao.updateNote(existing.id, bookmark.note)
+            }
+        }
+
         data.excludedFolders.forEach { excludedFolderDao.insert(ExcludedFolderEntity(it)) }
         tagDao.pruneUnused()
     }

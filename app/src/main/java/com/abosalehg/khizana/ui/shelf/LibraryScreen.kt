@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abosalehg.khizana.R
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.Tag
+import com.abosalehg.khizana.ui.share.BookSharing
 import kotlinx.coroutines.launch
 
 /**
@@ -70,6 +71,7 @@ fun LibraryScreen(
     val permissionGranted by viewModel.permissionGranted.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
     val query by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val shelfSort by viewModel.shelfSort.collectAsStateWithLifecycle()
 
     var showAddTopic by remember { mutableStateOf(false) }
     var shelfToRename by remember { mutableStateOf<Shelf?>(null) }
@@ -177,6 +179,15 @@ fun LibraryScreen(
         )
     }
 
+    /** The share sheet is the system's; we only report when there is nothing to hand it. */
+    fun shareBook(book: Book) {
+        if (!BookSharing.share(context, book)) {
+            scope.launch {
+                snackbarHostState.showSnackbar(context.getString(R.string.share_book_failed))
+            }
+        }
+    }
+
     /** Hiding is instant but reversible from the snackbar. */
     fun hideWithUndo(book: Book) {
         viewModel.hideBook(book.id)
@@ -251,6 +262,9 @@ fun LibraryScreen(
                         .padding(horizontal = 20.dp, vertical = 8.dp)
                 )
             }
+            item(key = "sort") {
+                SortRow(current = shelfSort, onSelect = viewModel::setShelfSort)
+            }
             if (tags.isNotEmpty()) {
                 item(key = "tags") {
                     TagFilterRow(
@@ -293,6 +307,7 @@ fun LibraryScreen(
                         onDeleteShelf = { shelfToDelete = it },
                         onHideBook = ::hideWithUndo,
                         onMoveBookRequest = { bookToMove = it },
+                        onShareBook = ::shareBook,
                         onTagBook = { bookForTags = it },
                         onDeleteBook = { bookToDelete = it }
                     )

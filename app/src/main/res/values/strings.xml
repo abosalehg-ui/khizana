@@ -35,6 +35,15 @@
     <string name="reader_page_position">Page %1$s of %2$s</string>
     <string name="reader_page_slider">Jump to page</string>
 
+    <string name="bookmarks_title">Bookmarks</string>
+    <string name="bookmarks_empty">No bookmarks in this book yet.</string>
+    <string name="bookmark_add">Add bookmark</string>
+    <string name="bookmark_edit">Edit bookmark</string>
+    <string name="bookmark_note_hint">Note (optional)</string>
+    <!-- Character counts, pre-formatted with Western digits like every other number. -->
+    <string name="bookmark_note_length">%1$s / %2$s</string>
+    <string name="bookmark_page">Page %1$s</string>
+
     <string name="hidden_books">Hidden books</string>
     <string name="no_hidden_books">No hidden books.</string>
     <string name="action_hide">Hide</string>
@@ -55,6 +64,14 @@
     <string name="tags_dialog_title">Book tags</string>
     <string name="new_tag_hint">New tag</string>
     <string name="filter_all">All</string>
+    <string name="share_book">Share</string>
+    <string name="share_book_failed">Couldn’t prepare this file for sharing.</string>
+
+    <string name="sort_label">Sort: %1$s</string>
+    <string name="sort_manual">My order</string>
+    <string name="sort_title">Name</string>
+    <string name="sort_date">Newest first</string>
+    <string name="sort_size">Largest first</string>
 
     <string name="settings">Settings</string>
     <string name="action_open">Open</string>
@@ -66,7 +83,7 @@
     <string name="remove_folder">Remove %1$s</string>
     <string name="folder_not_supported">This folder type can’t be excluded.</string>
     <string name="backup_title">Backup &amp; restore</string>
-    <string name="backup_desc">Saves your shelves, tags, reading positions and hidden flags to a JSON file. Restoring re-attaches everything by content fingerprint — even on a new device, after a scan. Android’s own cloud backup is switched off, so this file is the only copy of your library data that ever leaves the app.</string>
+    <string name="backup_desc">Saves your shelves, tags, bookmarks, reading positions and hidden flags to a JSON file. Restoring re-attaches everything by content fingerprint — even on a new device, after a scan. Android’s own cloud backup is switched off, so this file is the only copy of your library data that ever leaves the app.</string>
     <string name="backup_action">Back up</string>
     <string name="restore_action">Restore</string>
     <string name="backup_saved">Backup saved.</string>

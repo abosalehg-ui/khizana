@@ -1,6 +1,7 @@
 package com.abosalehg.khizana
 
 import com.abosalehg.khizana.data.backup.BackupBook
+import com.abosalehg.khizana.data.backup.BackupBookmark
 import com.abosalehg.khizana.data.backup.BackupData
 import com.abosalehg.khizana.data.backup.BackupRef
 import com.abosalehg.khizana.data.backup.BackupSerializer
@@ -57,7 +58,11 @@ class BackupSerializerTest {
         topics = listOf(BackupTopic(7, "تاريخ", 0)),
         tags = listOf(BackupTag(1, "مفضلة")),
         bookTags = listOf(BackupRef(idTarikh, 1)),
-        excludedFolders = listOf("/storage/emulated/0/Recordings")
+        excludedFolders = listOf("/storage/emulated/0/Recordings"),
+        bookmarks = listOf(
+            BackupBookmark(idTarikh, 41, "موضع الشاهد", 900),
+            BackupBookmark(idComic, 0, null, 901)
+        )
     )
 
     @Test
@@ -94,5 +99,21 @@ class BackupSerializerTest {
         val restored = BackupSerializer.fromJson("""{"version":1}""")
         assertTrue(restored.books.isEmpty())
         assertTrue(restored.excludedFolders.isEmpty())
+    }
+
+    @Test
+    fun `a version 1 file still restores, simply without bookmarks`() {
+        val v1 = """{"version": 1, "books": [], "topics": [], "tags": [], """ +
+            """"bookTags": [], "excludedFolders": ["/a"]}"""
+        val restored = BackupSerializer.fromJson(v1)
+        assertEquals(listOf("/a"), restored.excludedFolders)
+        assertTrue(restored.bookmarks.isEmpty())
+    }
+
+    @Test
+    fun `bookmark notes survive, including their absence`() {
+        val restored = BackupSerializer.fromJson(BackupSerializer.toJson(sample))
+        assertEquals("موضع الشاهد", restored.bookmarks.first { it.page == 41 }.note)
+        assertNull(restored.bookmarks.first { it.bookId == idComic }.note)
     }
 }

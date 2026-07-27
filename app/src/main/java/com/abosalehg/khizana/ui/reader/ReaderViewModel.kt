@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.abosalehg.khizana.data.repo.ReaderRepository
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.BookStatus
+import com.abosalehg.khizana.domain.model.Bookmark
 import com.abosalehg.khizana.domain.model.ReadingDirection
 import com.abosalehg.khizana.reader.engine.BookEngine
 import com.abosalehg.khizana.reader.engine.EngineOpenResult
@@ -19,8 +20,10 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
@@ -78,6 +81,10 @@ class ReaderViewModel @Inject constructor(
     /** Page-jump requests from the slider; the active pager animates to them. */
     private val _seekRequests = MutableSharedFlow<Int>(extraBufferCapacity = 1)
     val seekRequests: SharedFlow<Int> = _seekRequests.asSharedFlow()
+
+    /** This book's bookmarks, page-ordered, live for the whole reading session. */
+    val bookmarks: StateFlow<List<Bookmark>> = repository.bookmarks(bookId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Last settled page — survives rotation so the pager reopens in place. */
     var currentPage: Int = 0
@@ -147,6 +154,15 @@ class ReaderViewModel @Inject constructor(
         if (_state.value !is ReaderUiState.Ready) return
         currentPage = index
         viewModelScope.launch { repository.savePosition(bookId, index, pageCount) }
+    }
+
+    /** Adds a bookmark on [page], or replaces the note of the one already there. */
+    fun saveBookmark(page: Int, note: String?) {
+        viewModelScope.launch { repository.saveBookmark(bookId, page, note) }
+    }
+
+    fun deleteBookmark(id: Long) {
+        viewModelScope.launch { repository.deleteBookmark(id) }
     }
 
     /** Slider handoff: ask whichever pager is active to scroll to [page]. */

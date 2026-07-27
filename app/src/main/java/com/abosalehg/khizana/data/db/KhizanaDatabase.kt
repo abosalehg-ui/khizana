@@ -23,6 +23,9 @@ abstract class KhizanaDatabase : RoomDatabase() {
     abstract fun excludedFolderDao(): ExcludedFolderDao
     abstract fun tagDao(): TagDao
 
+    /** No version bump: `bookmarks` has been part of the schema since v1. */
+    abstract fun bookmarkDao(): BookmarkDao
+
     companion object {
         /**
          * v1 → v2: adds the three `books` indices. Index names must match what

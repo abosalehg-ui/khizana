@@ -38,6 +38,19 @@
             </intent-filter>
         </activity>
 
+        <!-- Sharing a book hands the receiving app a content:// URI for that
+             one file. Not exported: only URIs this app mints, with a temporary
+             read grant attached, are readable by anyone else. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- On-demand WorkManager initialization (Hilt worker factory). -->
         <provider
             android:name="androidx.startup.InitializationProvider"

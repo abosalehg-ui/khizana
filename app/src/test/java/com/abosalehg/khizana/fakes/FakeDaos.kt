@@ -3,6 +3,8 @@ package com.abosalehg.khizana.fakes
 import com.abosalehg.khizana.data.db.BookDao
 import com.abosalehg.khizana.data.db.BookEntity
 import com.abosalehg.khizana.data.db.BookTagCrossRef
+import com.abosalehg.khizana.data.db.BookmarkDao
+import com.abosalehg.khizana.data.db.BookmarkEntity
 import com.abosalehg.khizana.data.db.ExcludedFolderDao
 import com.abosalehg.khizana.data.db.ExcludedFolderEntity
 import com.abosalehg.khizana.data.db.TagDao
@@ -195,6 +197,41 @@ class FakeTagDao : TagDao {
     override suspend fun pruneUnused() {
         val used = refs.value.mapTo(HashSet()) { it.tagId }
         tags.value = tags.value.filter { it.id in used }
+    }
+}
+
+class FakeBookmarkDao : BookmarkDao {
+    private val rows = MutableStateFlow<List<BookmarkEntity>>(emptyList())
+    private var nextId = 1L
+
+    fun snapshot(): List<BookmarkEntity> = rows.value
+
+    override fun observeForBook(bookId: String): Flow<List<BookmarkEntity>> = rows.map { list ->
+        list.filter { it.bookId == bookId }.sortedBy { it.page }
+    }
+
+    override suspend fun findAt(bookId: String, page: Int): BookmarkEntity? =
+        rows.value.firstOrNull { it.bookId == bookId && it.page == page }
+
+    override suspend fun getAll(): List<BookmarkEntity> =
+        rows.value.sortedWith(compareBy({ it.bookId }, { it.page }))
+
+    override suspend fun insert(bookmark: BookmarkEntity): Long {
+        val id = nextId++
+        rows.value = rows.value + bookmark.copy(id = id)
+        return id
+    }
+
+    override suspend fun updateNote(id: Long, note: String?) {
+        rows.value = rows.value.map { if (it.id == id) it.copy(note = note) else it }
+    }
+
+    override suspend fun deleteById(id: Long) {
+        rows.value = rows.value.filterNot { it.id == id }
+    }
+
+    override suspend fun deleteForBook(bookId: String) {
+        rows.value = rows.value.filterNot { it.bookId == bookId }
     }
 }
 

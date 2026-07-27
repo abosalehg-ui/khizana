@@ -4,6 +4,7 @@ import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.BookFormat
 import com.abosalehg.khizana.domain.model.BookStatus
 import com.abosalehg.khizana.domain.model.ReadingDirection
+import com.abosalehg.khizana.domain.model.ShelfSort
 import com.abosalehg.khizana.domain.model.Topic
 import com.abosalehg.khizana.ui.shelf.buildShelves
 import org.junit.Assert.assertEquals
@@ -19,7 +20,9 @@ class ShelvesTest {
         title: String = id,
         progress: Float = 0f,
         lastReadAt: Long? = null,
-        manualOrder: Int = 0
+        manualOrder: Int = 0,
+        fileSize: Long = 1,
+        addedAt: Long = 1
     ) = Book(
         id = id,
         path = "/p/$id.pdf",
@@ -37,8 +40,8 @@ class ShelvesTest {
         status = BookStatus.OK,
         isHidden = false,
         manualOrder = manualOrder,
-        fileSize = 1,
-        addedAt = 1,
+        fileSize = fileSize,
+        addedAt = addedAt,
         lastReadAt = lastReadAt
     )
 
@@ -146,6 +149,99 @@ class ShelvesTest {
         assertEquals(
             listOf("first", "second", "auto"),
             shelves.first().books.map { it.id }
+        )
+    }
+
+    @Test
+    fun `sorting by name ignores the manual order entirely`() {
+        val shelves = buildShelves(
+            topics = emptyList(),
+            books = listOf(
+                book("last", null, title = "ياء", manualOrder = 1),
+                book("first", null, title = "ألف", manualOrder = 9)
+            ),
+            sort = ShelfSort.TITLE
+        )
+
+        assertEquals(listOf("first", "last"), shelves.first().books.map { it.id })
+    }
+
+    @Test
+    fun `sorting by date puts the newest addition at the front of the shelf`() {
+        val shelves = buildShelves(
+            topics = emptyList(),
+            books = listOf(
+                book("old", null, addedAt = 10),
+                book("newest", null, addedAt = 300),
+                book("middle", null, addedAt = 50)
+            ),
+            sort = ShelfSort.DATE_ADDED
+        )
+
+        assertEquals(listOf("newest", "middle", "old"), shelves.first().books.map { it.id })
+    }
+
+    @Test
+    fun `sorting by size puts the largest file first`() {
+        val shelves = buildShelves(
+            topics = emptyList(),
+            books = listOf(
+                book("small", null, fileSize = 1_000),
+                book("huge", null, fileSize = 900_000_000),
+                book("medium", null, fileSize = 40_000)
+            ),
+            sort = ShelfSort.SIZE
+        )
+
+        assertEquals(listOf("huge", "medium", "small"), shelves.first().books.map { it.id })
+    }
+
+    @Test
+    fun `books that tie on date or size fall back to title order`() {
+        // A single scan stamps every new book with the same addedAt, so without
+        // the tie-break the shelf would reshuffle on every emission.
+        val sameScan = listOf(
+            book("b", null, title = "المجلد 10", addedAt = 7, fileSize = 5),
+            book("a", null, title = "المجلد 2", addedAt = 7, fileSize = 5)
+        )
+
+        assertEquals(
+            listOf("a", "b"),
+            buildShelves(emptyList(), sameScan, ShelfSort.DATE_ADDED).first().books.map { it.id }
+        )
+        assertEquals(
+            listOf("a", "b"),
+            buildShelves(emptyList(), sameScan, ShelfSort.SIZE).first().books.map { it.id }
+        )
+    }
+
+    @Test
+    fun `continue reading stays newest-read first whatever the shelf sort is`() {
+        val shelves = buildShelves(
+            topics = emptyList(),
+            books = listOf(
+                book("bigOldRead", null, progress = 0.5f, lastReadAt = 5, fileSize = 999),
+                book("smallJustRead", null, progress = 0.5f, lastReadAt = 500, fileSize = 1)
+            ),
+            sort = ShelfSort.SIZE
+        )
+
+        assertEquals(
+            listOf("smallJustRead", "bigOldRead"),
+            shelves.first().books.map { it.id }
+        )
+    }
+
+    @Test
+    fun `the default sort is the hand-made order`() {
+        val books = listOf(
+            book("auto", null, title = "ألف"),
+            book("placed", null, title = "ياء", manualOrder = 1)
+        )
+
+        assertEquals(
+            buildShelves(emptyList(), books, ShelfSort.MANUAL),
+            buildShelves(emptyList(), books)
         )
     }
 

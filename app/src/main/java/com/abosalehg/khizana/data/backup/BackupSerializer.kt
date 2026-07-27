@@ -1,5 +1,6 @@
 package com.abosalehg.khizana.data.backup
 
+import com.abosalehg.khizana.domain.model.MAX_NOTE_LENGTH
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -19,7 +20,9 @@ data class BackupData(
     val topics: List<BackupTopic>,
     val tags: List<BackupTag>,
     val bookTags: List<BackupRef>,
-    val excludedFolders: List<String>
+    val excludedFolders: List<String>,
+    /** Added in format v2; a v1 file simply has none. */
+    val bookmarks: List<BackupBookmark> = emptyList()
 )
 
 data class BackupBook(
@@ -44,10 +47,26 @@ data class BackupTopic(val id: Long, val name: String, val order: Int)
 data class BackupTag(val id: Long, val name: String)
 data class BackupRef(val bookId: String, val tagId: Long)
 
+/**
+ * A bookmark, without its local row id: ids are per-device autoincrements, and
+ * the pair (bookId, page) already identifies a bookmark uniquely.
+ */
+data class BackupBookmark(
+    val bookId: String,
+    val page: Int,
+    val note: String?,
+    val createdAt: Long
+)
+
 /** Pure JSON (de)serialization — no Android, no DAOs, fully unit-testable. */
 object BackupSerializer {
 
-    const val FORMAT_VERSION = 1
+    /**
+     * v2 added the `bookmarks` section. v1 files still restore — the section
+     * is simply absent — but a v2 file is rejected by older builds, which is
+     * the point of the check in [fromJson].
+     */
+    const val FORMAT_VERSION = 2
 
     /** Largest backup we will read into memory (see BackupManager.importFrom). */
     const val MAX_BACKUP_BYTES = 32 * 1024 * 1024
@@ -92,6 +111,16 @@ object BackupSerializer {
             }
         })
         root.put("excludedFolders", JSONArray(data.excludedFolders))
+        root.put("bookmarks", JSONArray().apply {
+            data.bookmarks.forEach { b ->
+                put(JSONObject().apply {
+                    put("bookId", b.bookId)
+                    put("page", b.page)
+                    putOpt("note", b.note)
+                    put("createdAt", b.createdAt)
+                })
+            }
+        })
         return root.toString(2)
     }
 
@@ -149,7 +178,20 @@ object BackupSerializer {
         val excluded = root.optJSONArray("excludedFolders").orEmpty().let { arr ->
             (0 until arr.length()).map { arr.getString(it) }
         }
-        return BackupData(books, topics, tags, refs, excluded)
+        val bookmarks = root.optJSONArray("bookmarks").orEmpty().mapObjects { o ->
+            val bookId = o.optString("bookId")
+            // Same rule as book ids: it is a fingerprint or it is not ours.
+            if (!FINGERPRINT.matches(bookId)) {
+                throw BackupFormatException("Bookmark book id is not a content fingerprint")
+            }
+            BackupBookmark(
+                bookId = bookId,
+                page = o.optInt("page").coerceAtLeast(0),
+                note = o.optStringOrNull("note")?.take(MAX_NOTE_LENGTH),
+                createdAt = o.optLong("createdAt").coerceAtLeast(0)
+            )
+        }
+        return BackupData(books, topics, tags, refs, excluded, bookmarks)
     }
 
     private fun JSONArray?.orEmpty(): JSONArray = this ?: JSONArray()

@@ -38,4 +38,7 @@ object DatabaseModule {
 
     @Provides
     fun provideTagDao(db: KhizanaDatabase): TagDao = db.tagDao()
+
+    @Provides
+    fun provideBookmarkDao(db: KhizanaDatabase): BookmarkDao = db.bookmarkDao()
 }

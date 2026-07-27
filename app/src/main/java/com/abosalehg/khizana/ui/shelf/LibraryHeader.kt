@@ -2,6 +2,7 @@ package com.abosalehg.khizana.ui.shelf
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,13 +12,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.abosalehg.khizana.R
 import com.abosalehg.khizana.data.scanner.StoragePermission
+import com.abosalehg.khizana.domain.model.ShelfSort
 import com.abosalehg.khizana.ui.format.formatCount
 
 @Composable
@@ -124,6 +136,59 @@ internal fun ScanSection(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
+}
+
+/**
+ * Within-shelf ordering picker. It sits with the search field rather than in
+ * Settings: it changes what the reader is looking at right now, and it is the
+ * kind of thing you flip back and forth while hunting for a book.
+ */
+@Composable
+internal fun SortRow(current: ShelfSort, onSelect: (ShelfSort) -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box {
+            TextButton(onClick = { menuOpen = true }) {
+                Text(stringResource(R.string.sort_label, stringResource(sortLabel(current))))
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null
+                )
+            }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                ShelfSort.entries.forEach { sort ->
+                    DropdownMenuItem(
+                        text = { Text(stringResource(sortLabel(sort))) },
+                        leadingIcon = {
+                            // onClick = null: the row itself handles the tap,
+                            // so the radio stays a state marker, not a
+                            // second target the screen reader announces.
+                            RadioButton(selected = sort == current, onClick = null)
+                        },
+                        onClick = {
+                            menuOpen = false
+                            onSelect(sort)
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@StringRes
+private fun sortLabel(sort: ShelfSort): Int = when (sort) {
+    ShelfSort.MANUAL -> R.string.sort_manual
+    ShelfSort.TITLE -> R.string.sort_title
+    ShelfSort.DATE_ADDED -> R.string.sort_date
+    ShelfSort.SIZE -> R.string.sort_size
 }
 
 /** Shown instead of the shelves when there is genuinely nothing to show. */

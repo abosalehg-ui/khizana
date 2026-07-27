@@ -38,6 +38,15 @@
     <string name="reader_page_position">صفحة %1$s من %2$s</string>
     <string name="reader_page_slider">الانتقال إلى صفحة</string>
 
+    <string name="bookmarks_title">الإشارات المرجعية</string>
+    <string name="bookmarks_empty">لا إشارات في هذا الكتاب بعد.</string>
+    <string name="bookmark_add">إضافة إشارة</string>
+    <string name="bookmark_edit">تعديل الإشارة</string>
+    <string name="bookmark_note_hint">ملاحظة (اختيارية)</string>
+    <!-- عدّاد الأحرف يصل مُنسَّقاً بالأرقام الغربية كبقية الأعداد. -->
+    <string name="bookmark_note_length">%1$s / %2$s</string>
+    <string name="bookmark_page">صفحة %1$s</string>
+
     <string name="hidden_books">الكتب المخفية</string>
     <string name="no_hidden_books">لا كتب مخفية.</string>
     <string name="action_hide">إخفاء</string>
@@ -58,6 +67,14 @@
     <string name="tags_dialog_title">وسوم الكتاب</string>
     <string name="new_tag_hint">وسم جديد</string>
     <string name="filter_all">الكل</string>
+    <string name="share_book">مشاركة</string>
+    <string name="share_book_failed">تعذّر تجهيز هذا الملف للمشاركة.</string>
+
+    <string name="sort_label">الترتيب: %1$s</string>
+    <string name="sort_manual">ترتيبي اليدوي</string>
+    <string name="sort_title">الاسم</string>
+    <string name="sort_date">الأحدث إضافةً</string>
+    <string name="sort_size">الأكبر حجماً</string>
 
     <string name="settings">الإعدادات</string>
     <string name="action_open">فتح</string>
@@ -69,7 +86,7 @@
     <string name="remove_folder">إزالة %1$s</string>
     <string name="folder_not_supported">لا يمكن استبعاد هذا النوع من المجلدات.</string>
     <string name="backup_title">النسخ الاحتياطي والاستعادة</string>
-    <string name="backup_desc">يحفظ أرففك ووسومك ومواضع القراءة والإخفاء في ملف JSON. الاستعادة تعيد ربط كل شيء بالبصمة — حتى على جهاز جديد بعد الفحص. النسخ السحابي الخاص بأندرويد مُعطَّل، فهذا الملف هو النسخة الوحيدة من بيانات مكتبتك التي تخرج من التطبيق.</string>
+    <string name="backup_desc">يحفظ أرففك ووسومك وإشاراتك المرجعية ومواضع القراءة والإخفاء في ملف JSON. الاستعادة تعيد ربط كل شيء بالبصمة — حتى على جهاز جديد بعد الفحص. النسخ السحابي الخاص بأندرويد مُعطَّل، فهذا الملف هو النسخة الوحيدة من بيانات مكتبتك التي تخرج من التطبيق.</string>
     <string name="backup_action">نسخ احتياطي</string>
     <string name="restore_action">استعادة</string>
     <string name="backup_saved">تم حفظ النسخة الاحتياطية.</string>
