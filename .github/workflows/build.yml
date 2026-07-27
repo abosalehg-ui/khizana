@@ -36,6 +36,31 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 
+      # A green test task proves nothing on its own: a suite that discovered no
+      # tests reports exactly the same success. Print the counts, and fail if
+      # nothing ran.
+      - name: Unit test summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import glob, sys, xml.etree.ElementTree as ET
+          files = sorted(glob.glob("app/build/test-results/testDebugUnitTest/*.xml"))
+          if not files:
+              sys.exit("No test result XML: the unit test suite did not run.")
+          total = failures = errors = skipped = 0
+          for path in files:
+              root = ET.parse(path).getroot()
+              total += int(root.get("tests", 0))
+              failures += int(root.get("failures", 0))
+              errors += int(root.get("errors", 0))
+              skipped += int(root.get("skipped", 0))
+              print(f"  {root.get('name')}: {root.get('tests')} tests")
+          print(f"TOTAL {len(files)} classes, {total} tests, "
+                f"{failures} failures, {errors} errors, {skipped} skipped")
+          if total == 0:
+              sys.exit("Test classes were found but no tests executed.")
+          PY
+
       - name: Upload test report
         if: failure()
         uses: actions/upload-artifact@v4
