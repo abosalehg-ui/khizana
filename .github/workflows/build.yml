@@ -52,10 +52,19 @@ jobs:
           name: khizana-debug
           path: app/build/outputs/apk/debug/*.apk
 
+  # Flags dependencies with known high-severity advisories on every PR.
+  #
+  # Requires the repository's "Dependency graph" setting to be on
+  # (Settings -> Code security). Until it is, the action errors out with
+  # "Dependency review is not supported on this repository", which is a
+  # repository configuration gap and not a fault in the change under review —
+  # hence continue-on-error, so it reports rather than blocks. Remove that line
+  # once the setting is enabled and this becomes a real gate.
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       pull-requests: write
