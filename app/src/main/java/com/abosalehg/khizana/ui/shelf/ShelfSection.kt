@@ -1,7 +1,6 @@
 package com.abosalehg.khizana.ui.shelf
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.abosalehg.khizana.R
 import com.abosalehg.khizana.domain.model.Book
@@ -157,30 +154,49 @@ internal fun ShelfSection(
                 )
             }
         } else {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.Bottom,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                items(shelf.books, key = { it.id }) { book ->
-                    BookSpine(
-                        book = book,
-                        metrics = metrics,
-                        acceptDrops = acceptsDrops,
-                        onDroppedOn = { draggedId -> onDropOnBook(draggedId, book) },
-                        onOpen = { onOpenBook(book) },
-                        onHide = { onHideBook(book) },
-                        onMove = { onMoveBookRequest(book) },
-                        onTags = { onTagBook(book) },
-                        onDelete = { onDeleteBook(book) }
+            // The whole row is an append target, so a book can be dropped on
+            // any empty stretch of a populated shelf — between books, in the
+            // padding, or after the last one — not only onto another book or
+            // a narrow trailing slot. Book spines register their own targets
+            // on top and keep the precise insert-before behaviour: with
+            // nested drag-and-drop targets, the innermost one under the
+            // pointer receives the drop.
+            var rowHovered by remember { mutableStateOf(false) }
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (acceptsDrops) {
+                            dropTargetModifier(
+                                key = "row:${shelf.topicId}",
+                                onDropId = { id -> onMoveBook(id, shelf.topicId) },
+                                onHoverChanged = { rowHovered = it }
+                            )
+                        } else Modifier
                     )
-                }
-                if (acceptsDrops) {
-                    item(key = "end-slot") {
-                        EndDropSlot(
-                            height = metrics.coverHeight,
-                            onDropId = { id -> onMoveBook(id, shelf.topicId) }
+                    .then(
+                        if (rowHovered) {
+                            Modifier.border(2.dp, tokens.goldSoft, RoundedCornerShape(8.dp))
+                        } else Modifier
+                    )
+            ) {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.Bottom,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(shelf.books, key = { it.id }) { book ->
+                        BookSpine(
+                            book = book,
+                            metrics = metrics,
+                            acceptDrops = acceptsDrops,
+                            onDroppedOn = { draggedId -> onDropOnBook(draggedId, book) },
+                            onOpen = { onOpenBook(book) },
+                            onHide = { onHideBook(book) },
+                            onMove = { onMoveBookRequest(book) },
+                            onTags = { onTagBook(book) },
+                            onDelete = { onDeleteBook(book) }
                         )
                     }
                 }
@@ -192,33 +208,6 @@ internal fun ShelfSection(
                 .height(tokens.plankHeight)
         )
     }
-}
-
-/** Trailing drop area at the end of a shelf row: append to this shelf. */
-@Composable
-private fun EndDropSlot(
-    height: Dp,
-    onDropId: (String) -> Unit
-) {
-    var hovered by remember { mutableStateOf(false) }
-    val tokens = LocalWoodTokens.current
-    Box(
-        modifier = Modifier
-            .width(44.dp)
-            .height(height)
-            .then(
-                dropTargetModifier(
-                    key = "end",
-                    onDropId = onDropId,
-                    onHoverChanged = { hovered = it }
-                )
-            )
-            .then(
-                if (hovered) {
-                    Modifier.background(tokens.goldSoft.copy(alpha = 0.3f))
-                } else Modifier
-            )
-    )
 }
 
 /** A single wooden plank — the shelf surface books stand on. */
