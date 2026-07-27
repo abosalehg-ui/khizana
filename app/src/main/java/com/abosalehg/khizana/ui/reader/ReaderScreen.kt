@@ -25,8 +25,14 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -60,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abosalehg.khizana.R
+import com.abosalehg.khizana.domain.model.bookmarkAt
 import com.abosalehg.khizana.reader.buildSpreads
 import com.abosalehg.khizana.reader.spreadIndexOfPage
 import com.abosalehg.khizana.ui.format.formatCount
@@ -106,6 +113,12 @@ private fun ReaderContent(
     val useSpreads = isLandscape && ready.pageCount > 1
     var chromeVisible by remember { mutableStateOf(true) }
     var displayedPage by remember { mutableIntStateOf(viewModel.currentPage) }
+    val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+    // In a spread the settled page is the spread's first page, so this is the
+    // bookmark of the page the reader would say they are on.
+    val pageBookmark = bookmarkAt(bookmarks, displayedPage)
+    var showBookmarkEditor by remember { mutableStateOf(false) }
+    var showBookmarkList by remember { mutableStateOf(false) }
     val onPageChanged: (Int) -> Unit = { page ->
         displayedPage = page
         viewModel.onPageSettled(page)
@@ -124,6 +137,35 @@ private fun ReaderContent(
                 SinglePager(ready, viewModel, onPageChanged, onTap)
             }
         }
+    }
+
+    // Deliberately outside the RTL provider above: dialogs follow the UI
+    // language, not the book's reading direction.
+    if (showBookmarkEditor) {
+        BookmarkEditDialog(
+            page = displayedPage,
+            existing = pageBookmark,
+            onSave = { note ->
+                viewModel.saveBookmark(displayedPage, note)
+                showBookmarkEditor = false
+            },
+            onDelete = {
+                pageBookmark?.let { viewModel.deleteBookmark(it.id) }
+                showBookmarkEditor = false
+            },
+            onDismiss = { showBookmarkEditor = false }
+        )
+    }
+    if (showBookmarkList) {
+        BookmarkListDialog(
+            bookmarks = bookmarks,
+            onJump = { page ->
+                viewModel.requestPage(page)
+                showBookmarkList = false
+            },
+            onDelete = viewModel::deleteBookmark,
+            onDismiss = { showBookmarkList = false }
+        )
     }
 
     AnimatedVisibility(visible = chromeVisible, enter = fadeIn(), exit = fadeOut()) {
@@ -152,6 +194,29 @@ private fun ReaderContent(
                         .weight(1f)
                         .padding(horizontal = 8.dp)
                 )
+                IconButton(onClick = { showBookmarkEditor = true }) {
+                    Icon(
+                        // Filled vs outlined is the "is this page saved?"
+                        // answer at a glance, without a second row of chrome.
+                        imageVector = if (pageBookmark != null) {
+                            Icons.Default.Bookmark
+                        } else {
+                            Icons.Default.BookmarkBorder
+                        },
+                        contentDescription = stringResource(
+                            if (pageBookmark != null) R.string.bookmark_edit
+                            else R.string.bookmark_add
+                        ),
+                        tint = Color.White
+                    )
+                }
+                IconButton(onClick = { showBookmarkList = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Bookmarks,
+                        contentDescription = stringResource(R.string.bookmarks_title),
+                        tint = Color.White
+                    )
+                }
                 // Always western digits, per spec.
                 Text(
                     text = "${formatCount(displayedPage + 1)} / ${formatCount(ready.pageCount)}",

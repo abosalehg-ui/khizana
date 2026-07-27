@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Books live wherever the reader keeps them: internal storage, an SD card,
+    a USB volume. Anything narrower than root-path (external-path covers only
+    /storage/emulated/0) would leave the "share" menu item failing on exactly
+    the libraries that need All Files Access in the first place.
+
+    Breadth here is not access: the provider is not exported, and a URI only
+    exists for a file the user just chose to share, for the app they picked.
+-->
+<paths>
+    <root-path name="device" path="/" />
+</paths>

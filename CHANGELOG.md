@@ -6,7 +6,44 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **Bookmarks with notes.** The reader's top bar carries a bookmark toggle for
+  the current page and a list of the book's bookmarks; tapping one jumps to its
+  page. A page holds at most one bookmark, so saving again on a saved page
+  edits its note instead of stacking rows, and notes are capped at 500
+  characters in the field rather than truncated on save. No migration was
+  needed: the `bookmarks` table has shipped since schema v1 — it only lacked a
+  DAO and a UI. Deleting a book from the device now deletes its bookmarks too;
+  nothing here is a foreign key, so they would otherwise outlive their book.
+- **Bookmarks travel in the backup file**, which moves the backup format to
+  version 2. Version 1 files still restore (they simply carry no bookmarks);
+  older builds refuse a version 2 file rather than half-reading it, which is
+  what the version check is for. Restoring is idempotent: a bookmark that
+  already exists on that page has its note updated instead of duplicated.
+- **Shelf sort modes.** Books inside every shelf can be ordered by the manual
+  drag-and-drop arrangement (the default, unchanged), by name in natural order,
+  by newest addition, or by largest file. The choice is persisted in DataStore
+  and applies to all shelves at once. Automatic sorts never rewrite
+  `manualOrder`, so switching back to "my order" restores the hand-made
+  arrangement — and while one is active, dropping a book onto another book
+  moves it to that shelf without a meaningless reorder. Continue Reading keeps
+  its most-recently-read order under every mode.
+- **Share a book** from the ⋮ menu on its cover, next to Move/Hide/Tags/Delete.
+  The file is handed to the chosen app as a `content://` URI from a
+  non-exported `FileProvider` — a `file://` URI has thrown
+  `FileUriExposedException` since Android 7 — with a read grant scoped to that
+  one file. The provider maps `root-path`, because books legitimately live on
+  SD cards and USB volumes that `external-path` does not cover. The app still
+  has no INTERNET permission; the share sheet is the system's.
+
 ### Fixed
+
+- The generated Room schema (`app/schemas/…/2.json`) is committed at last. It
+  has been produced on every build since `exportSchema` was switched on but was
+  never checked in, which is exactly what a future migration test needs to
+  migrate *from* — the gap TESTING.md names. The schema itself is unchanged:
+  adding a bookmarks DAO touches no table.
 
 - Dropping a book anywhere on a populated shelf now works: the whole row is an
   append target, with book covers keeping their precise insert-before

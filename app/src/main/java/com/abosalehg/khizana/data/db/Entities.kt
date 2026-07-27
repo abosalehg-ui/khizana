@@ -67,9 +67,13 @@ data class BookTagCrossRef(
 )
 
 /**
- * Reserved for the bookmarks milestone: the table ships from v1 so adding
- * bookmarks later needs no migration. There is deliberately no DAO and no UI
- * yet — the README lists bookmarks under Roadmap, not Features.
+ * One saved place in a book plus an optional note. The table shipped from v1
+ * before anything read it, which is why adding [BookmarkDao] and the reader UI
+ * needed no migration at all: the schema was already there.
+ *
+ * [page] is a page index, matching `BookEntity.locator` as it is used today.
+ * When EPUB arrives it will need a string locator here too — the reason
+ * `locator` is a String on books.
  */
 @Entity(tableName = "bookmarks", indices = [Index("bookId")])
 data class BookmarkEntity(

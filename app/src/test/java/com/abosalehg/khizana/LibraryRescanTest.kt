@@ -5,6 +5,7 @@ import com.abosalehg.khizana.data.repo.LibraryRepository
 import com.abosalehg.khizana.data.scanner.ScannedFile
 import com.abosalehg.khizana.domain.model.BookFormat
 import com.abosalehg.khizana.fakes.FakeBookDao
+import com.abosalehg.khizana.fakes.FakeBookmarkDao
 import com.abosalehg.khizana.fakes.FakeExcludedFolderDao
 import com.abosalehg.khizana.fakes.FakeLibraryScanner
 import com.abosalehg.khizana.fakes.FakeTagDao
@@ -43,6 +44,7 @@ class LibraryRescanTest {
             bookDao = bookDao,
             topicDao = FakeTopicDao(),
             tagDao = FakeTagDao(),
+            bookmarkDao = FakeBookmarkDao(),
             excludedFolderDao = FakeExcludedFolderDao(),
             scanner = scanner,
             coverStore = CoverStore(temp.newFolder("covers")),

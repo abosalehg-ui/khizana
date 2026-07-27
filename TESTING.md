@@ -15,14 +15,17 @@ Current coverage (grows with each milestone):
 | Fingerprint identity (same content two paths -> same id; same size different content -> different id) | `FileFingerprintTest` |
 | Excluded-folder filtering (subpath vs similar-named sibling) | `ExcludedPathFilterTest` |
 | **Rescan contract**: new file added, move/rename keeps the row and its progress, vanished file marked MISSING not deleted, returning file restored to OK, duplicate content collapses to one row, unreadable file skipped, progress throttled but exact at the end | `LibraryRescanTest` |
-| **Restore contract**: unknown book inserted as MISSING with no path, known book's position overwritten (documented behaviour), topics merged by name, tag ids remapped, excluded folders added | `BackupRestoreTest` |
-| **Backup file validation**: missing/newer version rejected, traversal-style and non-fingerprint ids rejected, out-of-range numbers clamped | `BackupSerializerValidationTest` |
-| Room SQL: relocation, MISSING round trip, visible/hidden queries, shelf-scoped query incl. the null New shelf, cover candidates, shelf deletion; also pins the SQL status literals to the `BookStatus` enum | `KhizanaDatabaseTest` |
+| **Restore contract**: unknown book inserted as MISSING with no path, known book's position overwritten (documented behaviour), topics merged by name, tag ids remapped, excluded folders added, bookmarks restored once per page even on a repeat restore | `BackupRestoreTest` |
+| **Backup file validation**: missing/newer version rejected, traversal-style and non-fingerprint ids rejected (books and bookmarks alike), out-of-range numbers clamped | `BackupSerializerValidationTest` |
+| Room SQL: relocation, MISSING round trip, visible/hidden queries, shelf-scoped query incl. the null New shelf, cover candidates, shelf deletion, bookmark scoping/ordering/note editing/cascade-by-hand; also pins the SQL status literals to the `BookStatus` enum | `KhizanaDatabaseTest` |
 | CBZ cover entry selection, image detection, downsample math, natural page order | `CbzCoverTest` |
-| Shelf grouping, orphan fallback, tag filtering, Continue-Reading rules, within-shelf ordering | `ShelvesTest` |
+| Shelf grouping, orphan fallback, tag filtering, Continue-Reading rules, within-shelf ordering, the name/date/size sort modes and their title tie-break | `ShelvesTest` |
+| Bookmark note normalization (blank → null, trimming, length cap) and page lookup | `BookmarksTest` |
+| **One bookmark per page**: a second save edits the note, clearing a note keeps the bookmark, deletion is scoped | `ReaderBookmarksTest` |
+| Share MIME type per format (a wrong type hides every reader app from the chooser) | `BookSharingTest` |
 | Progress math (pageCount 0/1, clamping) & direction resolution | `ReadingTest` |
 | Spread building (cover alone, odd/even tails) & page<->spread mapping | `SpreadsTest` |
-| Backup JSON round-trip (nulls, Arabic, empty sections) | `BackupSerializerTest` |
+| Backup JSON round-trip (nulls, Arabic, empty sections, bookmarks, a v1 file read by this v2 build) | `BackupSerializerTest` |
 | SAF tree-id -> filesystem path (primary, SD, unsupported) | `TreePathsTest` |
 | Natural ordering (Arabic/Latin/Arabic-Indic digits, zeros, case) | `NaturalOrderTest` |
 | Search normalization (tashkeel, alef/ta-marbuta/maqsura variants) | `SearchTest` |
@@ -39,6 +42,23 @@ Known gaps, stated rather than implied:
   to (`buildShelves`, `normalizeForSearch`) are covered.
 
 ## Manual checklist
+
+### M9 — bookmarks, shelf sort, sharing
+- [ ] In the reader, the bookmark icon is outlined on a fresh page and filled after saving; it stays filled after leaving and reopening the book.
+- [ ] Saving a note, then tapping the bookmark icon again on the same page, shows that note for editing — it does not create a second bookmark.
+- [ ] Clearing the note text and saving keeps the page bookmarked (icon still filled).
+- [ ] The bookmark list shows every bookmark page-ordered; tapping one jumps the pager to it, in both an RTL and an LTR book.
+- [ ] Deleting a bookmark from the list empties the icon when you are standing on that page.
+- [ ] The note field stops accepting input at 500 characters and the counter agrees.
+- [ ] In landscape (two-page spread), bookmarking marks the spread's first page and the list jumps back to that spread.
+- [ ] Back up, delete a bookmark, restore → the bookmark returns with its note; restoring twice does not duplicate it.
+- [ ] Delete a book from the device → its bookmarks are gone (re-add the file, rescan: no stale notes).
+- [ ] «الترتيب» → «الاسم» reorders every shelf; «الأحدث إضافةً» puts the newest scan first; «الأكبر حجماً» puts the biggest file first.
+- [ ] The choice survives an app restart; «أكمل القراءة» stays newest-read-first under all four.
+- [ ] Switching back to «ترتيبي اليدوي» restores the hand-made drag order exactly.
+- [ ] Under an automatic sort, dragging a book onto a book on another shelf still moves it to that shelf.
+- [ ] ⋮ on a book → «مشاركة» opens the system share sheet; sending to a file manager/email produces a working copy of the PDF/CBZ.
+- [ ] Sharing a book whose file was deleted behind the app's back shows the failure message instead of an empty share sheet.
 
 ### M8
 - [ ] Searching «تاريخ» finds «تَارِيخ الطبري» (diacritics ignored); «مكتبه» finds «مكتبة».

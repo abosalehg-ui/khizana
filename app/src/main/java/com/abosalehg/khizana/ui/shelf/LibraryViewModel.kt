@@ -12,6 +12,7 @@ import com.abosalehg.khizana.data.repo.LibraryRepository
 import com.abosalehg.khizana.data.scanner.StoragePermission
 import com.abosalehg.khizana.data.settings.SettingsRepository
 import com.abosalehg.khizana.domain.model.Book
+import com.abosalehg.khizana.domain.model.ShelfSort
 import com.abosalehg.khizana.util.normalizeForSearch
 import com.abosalehg.khizana.work.ScanWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -108,6 +109,19 @@ class LibraryViewModel @Inject constructor(
         // Clearing the field must feel instant; typing waits for a pause.
         .debounce { query -> if (query.isEmpty()) 0L else SEARCH_DEBOUNCE_MS }
 
+    val shelfSort: StateFlow<ShelfSort> = settingsRepository.shelfSort
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ShelfSort.MANUAL)
+
+    /** Everything the reader controls from the header, in one flow. */
+    private data class ViewOptions(val tagId: Long?, val query: String, val sort: ShelfSort)
+
+    // Folded into one flow because `combine` tops out at five sources and the
+    // library state already reads three from the database.
+    private val viewOptions: Flow<ViewOptions> =
+        combine(_selectedTagId, debouncedQuery, settingsRepository.shelfSort) { tagId, query, sort ->
+            ViewOptions(tagId, query, sort)
+        }
+
     /**
      * Grouping, sorting and filtering all run on [Dispatchers.Default]. They
      * used to run on the main thread for every keystroke and every database
@@ -118,10 +132,10 @@ class LibraryViewModel @Inject constructor(
             repository.topics,
             indexedBooks,
             repository.bookTagRefs,
-            _selectedTagId,
-            debouncedQuery
-        ) { topics, indexed, refs, tagId, query ->
-            var shelves = buildShelves(topics, indexed.map { it.book })
+            viewOptions
+        ) { topics, indexed, refs, options ->
+            val (tagId, query, sort) = options
+            var shelves = buildShelves(topics, indexed.map { it.book }, sort)
             tagId?.let { id ->
                 val tagged = refs.filter { it.tagId == id }.mapTo(HashSet()) { it.bookId }
                 shelves = filterShelvesByBookIds(shelves, tagged)
@@ -208,10 +222,29 @@ class LibraryViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    /** Drop of a dragged book onto another book: insert before it. */
+    fun setShelfSort(sort: ShelfSort) {
+        viewModelScope.launch { settingsRepository.setShelfSort(sort) }
+    }
+
+    /**
+     * Drop of a dragged book onto another book: insert before it.
+     *
+     * Under an automatic sort there is no "before" to insert into — rewriting
+     * `manualOrder` would change nothing on screen and quietly scramble the
+     * hand-made arrangement waiting under it — so the drop only moves the book
+     * to the target's shelf.
+     */
     fun dropOnBook(draggedId: String, target: Book) {
         if (draggedId == target.id) return
-        viewModelScope.launch { repository.reorderBook(draggedId, target.id) }
+        viewModelScope.launch {
+            // Read the stored value, not the cached StateFlow: the cache holds
+            // the default until something is collecting it.
+            if (settingsRepository.shelfSort.first() == ShelfSort.MANUAL) {
+                repository.reorderBook(draggedId, target.id)
+            } else {
+                repository.moveBookToTopic(draggedId, target.topicId)
+            }
+        }
     }
 
     /** Loads the book's current tag ids for the tag dialog. */

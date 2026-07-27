@@ -32,8 +32,23 @@ class BackupSerializerValidationTest {
     @Test
     fun aNewerFormatVersionIsRejectedRatherThanPartlyApplied() {
         assertThrows(BackupFormatException::class.java) {
-            BackupSerializer.fromJson(payload(version = "2"))
+            BackupSerializer.fromJson(payload(version = "${BackupSerializer.FORMAT_VERSION + 1}"))
         }
+    }
+
+    @Test
+    fun aBookmarkIdThatIsNotAFingerprintIsRejected() {
+        val json = """{"version": 2, "bookmarks": [{"bookId": "../x", "page": 1}]}"""
+        assertThrows(BackupFormatException::class.java) { BackupSerializer.fromJson(json) }
+    }
+
+    @Test
+    fun aNegativeBookmarkPageIsClampedInsteadOfStored() {
+        val json = """{"version": 2, "bookmarks": """ +
+            """[{"bookId": "$validId", "page": -4, "createdAt": -1}]}"""
+        val bookmark = BackupSerializer.fromJson(json).bookmarks.single()
+        assertEquals(0, bookmark.page)
+        assertEquals(0L, bookmark.createdAt)
     }
 
     @Test

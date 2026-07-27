@@ -13,6 +13,9 @@
 - 📖 قارئ PDF و CBZ داخلي بمحرّك النظام فقط (`android.graphics.pdf.PdfRenderer`) — بلا مكتبات PDF خارجية، فترقيعات الأمان تصلك من النظام.
 - 🪵 رفوف خشبية دافئة بأغلفة بنسبة 2:3، تتكيّف مقاساتها مع حجم الشاشة.
 - 🗂️ مواضيع (أرفف) ووسوم لتنظيم المكتبة، وبحث عربي يتجاهل التشكيل وفروق الألف والتاء المربوطة.
+- ↕️ ترتيب الكتب داخل الأرفف: ترتيبك اليدوي (بالسحب) أو بالاسم أو الأحدث إضافةً أو الأكبر حجماً.
+- 🔖 إشارات مرجعية بملاحظات: إشارة واحدة لكل صفحة، تُفتح من القارئ وتنتقل بضغطة، ومحفوظة في النسخة الاحتياطية.
+- 📤 مشاركة ملف أي كتاب مع تطبيق آخر من قائمة الكتاب.
 - 🌙 وضع ليلي للواجهة (فاتح / غامق / تلقائي).
 - 🈯 واجهة عربية/إنجليزية تتبع لغة النظام، واتجاه قراءة مستقل لكل كتاب.
 - 💾 نسخ احتياطي واستعادة إلى ملف JSON تختاره أنت، مربوط ببصمة محتوى الملف لا بمساره.
@@ -21,7 +24,6 @@
 
 هذه مذكورة هنا صراحةً لأنها **ليست** موجودة في التطبيق حالياً:
 
-- 🔖 إشارات مرجعية بملاحظات — جدول `bookmarks` جاهز في قاعدة البيانات، بلا واجهة بعد.
 - 🌗 عكس ألوان صفحات الكتاب وتقوية التباين للمسح الضوئي.
 - 📚 دعم EPUB (الواجهة `BookEngine` مصمّمة لاستيعابه).
 - 🎨 أغلفة افتراضية مولَّدة بتصميم — البديل الحالي هو الحرف الأول من العنوان.
@@ -31,6 +33,7 @@
 - **التطبيق لا يملك إذن الإنترنت أصلاً** — لا يستطيع إرسال أي بايت خارج جهازك. لا تحليلات، لا تتبّع، لا إعلانات.
 - **النسخ الاحتياطي السحابي من أندرويد معطَّل** (`allowBackup="false"` مع استثناء صريح لكل النطاقات). هذا مهم: نقل النسخ الاحتياطي يقوم به النظام لا التطبيق، فغياب إذن الإنترنت وحده لا يمنعه. بدونه كانت قاعدة البيانات — مسارات كتبك وعناوينها وسجل قراءتك — تُرفع إلى Google Drive.
 - النسخة الاحتياطية الوحيدة هي ملف JSON تُنشئه أنت من الإعدادات وتضعه حيث تشاء.
+- **المشاركة تنتقل عبر النظام لا عبر التطبيق**: عند اختيار «مشاركة» يسلّم التطبيق رابط `content://` مؤقتاً للتطبيق الذي تختاره أنت من ورقة المشاركة، لملف واحد فقط. خِزانة لا ترسل شيئاً بنفسها — ولا تستطيع.
 
 ## إذن «الوصول لكل الملفات» — ولماذا هو ضروري
 
@@ -66,6 +69,9 @@ Khizana scans your device for book files (PDF and CBZ) and lays them out on **re
 - 📖 Built-in PDF & CBZ reader using only the OS engine (`android.graphics.pdf.PdfRenderer`) — no third-party PDF library, so security fixes arrive with the platform.
 - 🪵 Warm wooden shelves with 2:3 covers that scale with the window size.
 - 🗂️ Topics (shelves) and tags, plus Arabic-aware search that ignores diacritics and alef/ta-marbuta variants.
+- ↕️ Shelf ordering: your own drag-and-drop order, or by name, newest first, or largest first.
+- 🔖 Bookmarks with notes: one per page, opened from the reader, jumped to with a tap, and kept in the backup file.
+- 📤 Share any book's file with another app straight from the book menu.
 - 🌙 Light / dark / follow-system theming.
 - 🈯 Arabic/English UI following the system language, with per-book reading direction.
 - 💾 Backup & restore to a JSON file you choose, keyed by content fingerprint rather than file path.
@@ -74,7 +80,6 @@ Khizana scans your device for book files (PDF and CBZ) and lays them out on **re
 
 Listed explicitly because they are **not** in the app today:
 
-- 🔖 Bookmarks with notes — the `bookmarks` table ships in the schema, the UI does not exist.
 - 🌗 Page colour inversion and contrast boosting for scanned books.
 - 📚 EPUB support (the `BookEngine` interface is shaped for it).
 - 🎨 Designed fallback covers — today's placeholder is the title's first letter.
@@ -84,6 +89,7 @@ Listed explicitly because they are **not** in the app today:
 - **The app holds no internet permission at all** — it cannot send a single byte off your device. No analytics, no tracking, no ads.
 - **Android's own cloud backup is disabled** (`allowBackup="false"` plus explicit exclusions for every domain). This matters: the backup transport is run by the system, not by the app, so lacking the internet permission does not stop it. Without this the database — every book path, title and reading position — was uploaded to Google Drive.
 - The only backup is the JSON file you export yourself from Settings, to a location you pick.
+- **Sharing goes through the system, not through the app**: "Share" hands a temporary `content://` URI for that one file to whichever app you pick in the share sheet. Khizana sends nothing itself — it cannot.
 
 ## The "All Files Access" permission — and why it's needed
 

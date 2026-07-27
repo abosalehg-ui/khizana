@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.abosalehg.khizana.data.db.BookEntity
+import com.abosalehg.khizana.data.db.BookmarkEntity
 import com.abosalehg.khizana.data.db.KhizanaDatabase
 import com.abosalehg.khizana.domain.model.BookStatus
 import kotlinx.coroutines.flow.first
@@ -159,6 +160,43 @@ class KhizanaDatabaseTest {
         dao.setCoverFailed("triedAndFailed")
 
         assertEquals(listOf("wants"), dao.getNeedingCovers().map { it.id })
+    }
+
+    @Test
+    fun bookmarksAreScopedToTheirBookAndComeBackPageOrdered() = runBlocking {
+        val dao = db.bookmarkDao()
+        dao.insert(BookmarkEntity(bookId = "a", page = 40, note = "آخر", createdAt = 2))
+        dao.insert(BookmarkEntity(bookId = "a", page = 3, note = null, createdAt = 1))
+        dao.insert(BookmarkEntity(bookId = "b", page = 1, note = "كتاب آخر", createdAt = 3))
+
+        val forA = dao.observeForBook("a").first()
+        assertEquals(listOf(3, 40), forA.map { it.page })
+        assertEquals(listOf("كتاب آخر"), dao.observeForBook("b").first().map { it.note })
+    }
+
+    @Test
+    fun aNoteCanBeEditedAndClearedBackToNull() = runBlocking {
+        val dao = db.bookmarkDao()
+        val id = dao.insert(BookmarkEntity(bookId = "a", page = 5, note = "أولى", createdAt = 1))
+
+        dao.updateNote(id, "ثانية")
+        assertEquals("ثانية", dao.findAt("a", 5)!!.note)
+
+        dao.updateNote(id, null)
+        assertEquals(null, dao.findAt("a", 5)!!.note)
+    }
+
+    @Test
+    fun deletingABookTakesItsBookmarksWithIt() = runBlocking {
+        val dao = db.bookmarkDao()
+        dao.insert(BookmarkEntity(bookId = "gone", page = 1, note = "ملاحظة", createdAt = 1))
+        dao.insert(BookmarkEntity(bookId = "kept", page = 1, note = "ملاحظة", createdAt = 1))
+
+        // Nothing here is a foreign key, so this is the only thing that
+        // prevents notes outliving the book they belong to.
+        dao.deleteForBook("gone")
+
+        assertEquals(listOf("kept"), dao.getAll().map { it.bookId })
     }
 
     @Test

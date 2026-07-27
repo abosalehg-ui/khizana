@@ -5,6 +5,7 @@ import com.abosalehg.khizana.data.covers.CoverStore
 import com.abosalehg.khizana.data.db.BookDao
 import com.abosalehg.khizana.data.db.BookEntity
 import com.abosalehg.khizana.data.db.BookTagCrossRef
+import com.abosalehg.khizana.data.db.BookmarkDao
 import com.abosalehg.khizana.data.db.ExcludedFolderDao
 import com.abosalehg.khizana.data.db.ExcludedFolderEntity
 import com.abosalehg.khizana.data.db.TagDao
@@ -41,6 +42,7 @@ class LibraryRepository @Inject constructor(
     private val bookDao: BookDao,
     private val topicDao: TopicDao,
     private val tagDao: TagDao,
+    private val bookmarkDao: BookmarkDao,
     private val excludedFolderDao: ExcludedFolderDao,
     private val scanner: LibraryScanner,
     private val coverStore: CoverStore,
@@ -140,6 +142,9 @@ class LibraryRepository @Inject constructor(
         coverStore.delete(book.id)
         transaction {
             bookDao.deleteTagRefsForBook(book.id)
+            // Bookmarks are not foreign-keyed to the book, so nothing removes
+            // them for us — orphan notes would outlive the book otherwise.
+            bookmarkDao.deleteForBook(book.id)
             bookDao.deleteById(book.id)
             tagDao.pruneUnused()
         }

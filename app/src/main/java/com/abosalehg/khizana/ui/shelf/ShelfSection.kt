@@ -56,6 +56,7 @@ internal fun ShelfSection(
     onDeleteShelf: (Shelf) -> Unit,
     onHideBook: (Book) -> Unit,
     onMoveBookRequest: (Book) -> Unit,
+    onShareBook: (Book) -> Unit,
     onTagBook: (Book) -> Unit,
     onDeleteBook: (Book) -> Unit
 ) {
@@ -195,6 +196,7 @@ internal fun ShelfSection(
                             onOpen = { onOpenBook(book) },
                             onHide = { onHideBook(book) },
                             onMove = { onMoveBookRequest(book) },
+                            onShare = { onShareBook(book) },
                             onTags = { onTagBook(book) },
                             onDelete = { onDeleteBook(book) }
                         )
