@@ -1,7 +1,12 @@
 package com.abosalehg.khizana.data.backup
 
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
+
+/** A backup file that is not readable as a Khizana backup of a known version. */
+class BackupFormatException(message: String, cause: Throwable? = null) :
+    IllegalArgumentException(message, cause)
 
 /**
  * Backup payload: everything user-authored, keyed by content fingerprints so
@@ -44,6 +49,11 @@ object BackupSerializer {
 
     const val FORMAT_VERSION = 1
 
+    /** Largest backup we will read into memory (see BackupManager.importFrom). */
+    const val MAX_BACKUP_BYTES = 32 * 1024 * 1024
+
+    private val FINGERPRINT = Regex("^[0-9a-f]{64}$")
+
     fun toJson(data: BackupData): String {
         val root = JSONObject()
         root.put("version", FORMAT_VERSION)
@@ -85,23 +95,44 @@ object BackupSerializer {
         return root.toString(2)
     }
 
+    /**
+     * A backup file is user-supplied input, not trusted app state: the version
+     * is checked, book ids must be bare fingerprints (they end up as file names
+     * in the cover store), and numeric fields are clamped to their valid range.
+     * Anything malformed raises [BackupFormatException] rather than being
+     * half-applied to the user's library.
+     */
     fun fromJson(json: String): BackupData {
-        val root = JSONObject(json)
+        val root = try {
+            JSONObject(json)
+        } catch (e: JSONException) {
+            throw BackupFormatException("Not a JSON document", e)
+        }
+        val version = root.optInt("version", 0)
+        if (version <= 0 || version > FORMAT_VERSION) {
+            throw BackupFormatException(
+                "Unsupported backup version $version (this build reads up to $FORMAT_VERSION)"
+            )
+        }
         val books = root.optJSONArray("books").orEmpty().mapObjects { o ->
+            val id = o.optString("id")
+            if (!FINGERPRINT.matches(id)) {
+                throw BackupFormatException("Book id is not a content fingerprint")
+            }
             BackupBook(
-                id = o.getString("id"),
+                id = id,
                 fileName = o.optString("fileName"),
                 format = o.optString("format", "PDF"),
                 title = o.optString("title"),
                 author = o.optStringOrNull("author"),
                 topicId = if (o.has("topicId") && !o.isNull("topicId")) o.getLong("topicId") else null,
-                pageCount = o.optInt("pageCount"),
+                pageCount = o.optInt("pageCount").coerceAtLeast(0),
                 locator = o.optStringOrNull("locator"),
-                progress = o.optDouble("progress", 0.0).toFloat(),
+                progress = o.optDouble("progress", 0.0).toFloat().coerceIn(0f, 1f),
                 readingDirection = o.optString("readingDirection", "AUTO"),
                 isHidden = o.optBoolean("isHidden"),
-                manualOrder = o.optInt("manualOrder"),
-                fileSize = o.optLong("fileSize"),
+                manualOrder = o.optInt("manualOrder").coerceAtLeast(0),
+                fileSize = o.optLong("fileSize").coerceAtLeast(0),
                 addedAt = o.optLong("addedAt"),
                 lastReadAt = if (o.has("lastReadAt") && !o.isNull("lastReadAt")) o.getLong("lastReadAt") else null
             )

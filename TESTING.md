@@ -2,31 +2,41 @@
 
 ## Automated
 
-- **Unit tests:** `./gradlew testDebugUnitTest`
-- **Instrumented tests:** `./gradlew connectedDebugAndroidTest` (device/emulator required)
+- **Unit tests:** `./gradlew testDebugUnitTest` — this is the whole automated
+  suite. Room/DAO tests run on the JVM through Robolectric, so CI executes
+  them; there is no instrumented source set and no emulator step to forget.
+- **Lint:** `./gradlew lintDebug`
 
 Current coverage (grows with each milestone):
 
-| Area | Test | Milestone |
-|---|---|---|
-| ThemeMode parsing | `ThemeModeTest` | M0 |
-| Fingerprint identity (same content two paths → same id; same size different content → different id) | `FileFingerprintTest` | M1 |
-| Excluded-folder filtering (subpath vs similar-named sibling) | `ExcludedPathFilterTest` | M1 |
-| Hidden state & progress survive relocation / MISSING round-trip (instrumented) | `BookDaoRescanTest` | M1 |
-| CBZ cover entry selection, image detection, downsample math | `CbzCoverTest` | M2 |
-| Shelf grouping: New-shelf-first, topic order, orphan fallback | `ShelvesTest` | M3 |
-| Progress math (pageCount 0/1, clamping) & direction resolution | `ReadingTest` | M4 |
-| Spread building (cover alone, odd/even tails) & page↔spread mapping | `SpreadsTest` | M5 |
-| Tag filtering keeps shelf structure; null filter no-op | `ShelvesTest` | M6 |
-| Backup JSON round-trip (nulls, Arabic, empty sections) | `BackupSerializerTest` | M7 |
-| SAF tree-id → filesystem path (primary, SD, unsupported) | `TreePathsTest` | M7 |
-| Natural ordering (Arabic/Latin/Arabic-Indic digits, zeros, case) | `NaturalOrderTest` | M8 |
-| Search normalization (tashkeel, alef/ta-marbuta/maqsura variants) | `SearchTest` | M8 |
-| Continue-Reading shelf rules & within-shelf ordering | `ShelvesTest` | M8 |
-| CBZ natural page order | `CbzCoverTest` | M8 |
-| CBZ reading order (case-insensitive alphabetical) | `CbzCoverTest` | M4 |
+| Area | Test |
+|---|---|
+| ThemeMode parsing | `ThemeModeTest` |
+| Fingerprint identity (same content two paths -> same id; same size different content -> different id) | `FileFingerprintTest` |
+| Excluded-folder filtering (subpath vs similar-named sibling) | `ExcludedPathFilterTest` |
+| **Rescan contract**: new file added, move/rename keeps the row and its progress, vanished file marked MISSING not deleted, returning file restored to OK, duplicate content collapses to one row, unreadable file skipped, progress throttled but exact at the end | `LibraryRescanTest` |
+| **Restore contract**: unknown book inserted as MISSING with no path, known book's position overwritten (documented behaviour), topics merged by name, tag ids remapped, excluded folders added | `BackupRestoreTest` |
+| **Backup file validation**: missing/newer version rejected, traversal-style and non-fingerprint ids rejected, out-of-range numbers clamped | `BackupSerializerValidationTest` |
+| Room SQL: relocation, MISSING round trip, visible/hidden queries, shelf-scoped query incl. the null New shelf, cover candidates, shelf deletion; also pins the SQL status literals to the `BookStatus` enum | `KhizanaDatabaseTest` |
+| CBZ cover entry selection, image detection, downsample math, natural page order | `CbzCoverTest` |
+| Shelf grouping, orphan fallback, tag filtering, Continue-Reading rules, within-shelf ordering | `ShelvesTest` |
+| Progress math (pageCount 0/1, clamping) & direction resolution | `ReadingTest` |
+| Spread building (cover alone, odd/even tails) & page<->spread mapping | `SpreadsTest` |
+| Backup JSON round-trip (nulls, Arabic, empty sections) | `BackupSerializerTest` |
+| SAF tree-id -> filesystem path (primary, SD, unsupported) | `TreePathsTest` |
+| Natural ordering (Arabic/Latin/Arabic-Indic digits, zeros, case) | `NaturalOrderTest` |
+| Search normalization (tashkeel, alef/ta-marbuta/maqsura variants) | `SearchTest` |
 
-All unit tests planned in the project spec are now implemented.
+Known gaps, stated rather than implied:
+
+- **No Compose UI tests.** The unused `ui-test-junit4` dependency was removed
+  rather than left declared and unexercised.
+- **No migration test.** `exportSchema` was off until now, so there is no v1
+  schema JSON for `MigrationTestHelper` to migrate from. From v2 onwards the
+  JSON under `app/schemas/` makes every future migration testable, and one
+  should be added with the next schema change.
+- ViewModels are untested; their logic is thin and the pure parts it delegates
+  to (`buildShelves`, `normalizeForSearch`) are covered.
 
 ## Manual checklist
 

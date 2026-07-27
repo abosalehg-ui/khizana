@@ -23,16 +23,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +52,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -57,7 +62,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abosalehg.khizana.R
 import com.abosalehg.khizana.reader.buildSpreads
 import com.abosalehg.khizana.reader.spreadIndexOfPage
+import com.abosalehg.khizana.ui.format.formatCount
 import com.abosalehg.khizana.ui.reader.ReaderUiState.Ready
+import kotlin.math.roundToInt
+
+/** Highest multiple of the viewport width we will re-render a page at. */
+private const val MAX_RENDER_SCALE = 3
 
 /**
  * Reader: single-page paging in portrait, two-page spreads in landscape,
@@ -101,48 +111,78 @@ private fun ReaderContent(
         viewModel.onPageSettled(page)
     }
     val onTap = { chromeVisible = !chromeVisible }
+    val bookDirection = if (ready.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-    // The pager itself flips direction so page order matches the book.
-    CompositionLocalProvider(
-        LocalLayoutDirection provides
-            if (ready.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
-    ) {
-        if (useSpreads) {
-            SpreadPager(ready, viewModel, onPageChanged, onTap)
-        } else {
-            SinglePager(ready, viewModel, onPageChanged, onTap)
+    // The pager itself flips direction so page order matches the book. `key`
+    // gives each mode its own saved pager state, so a rotation can never
+    // restore a spread index into the single-page pager or vice versa.
+    CompositionLocalProvider(LocalLayoutDirection provides bookDirection) {
+        key(useSpreads) {
+            if (useSpreads) {
+                SpreadPager(ready, viewModel, onPageChanged, onTap)
+            } else {
+                SinglePager(ready, viewModel, onPageChanged, onTap)
+            }
         }
     }
 
     AnimatedVisibility(visible = chromeVisible, enter = fadeIn(), exit = fadeOut()) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xCC141210))
                 .statusBarsPadding()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
-            TextButton(onClick = onBack) {
-                Text(stringResource(R.string.action_back), color = Color.White)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onBack) {
+                    Text(stringResource(R.string.action_back), color = Color.White)
+                }
+                Text(
+                    text = ready.book.title,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 8.dp)
+                )
+                // Always western digits, per spec.
+                Text(
+                    text = "${formatCount(displayedPage + 1)} / ${formatCount(ready.pageCount)}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
-            Text(
-                text = ready.book.title,
-                color = Color.White,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 8.dp)
-            )
-            // Always western digits, per spec.
-            Text(
-                text = "${displayedPage + 1} / ${ready.pageCount}",
-                color = Color.White,
-                style = MaterialTheme.typography.labelLarge
-            )
+            // Swiping is not the only way to move through a book: the slider
+            // is reachable by keyboard and screen reader, and it makes long
+            // scanned volumes navigable at all.
+            if (ready.pageCount > 1) {
+                var sliderValue by remember(displayedPage) {
+                    mutableFloatStateOf(displayedPage.toFloat())
+                }
+                val sliderLabel = stringResource(R.string.reader_page_slider)
+                // Matching the book's direction keeps "forward" on the slider
+                // and "forward" in the pager the same way round.
+                CompositionLocalProvider(LocalLayoutDirection provides bookDirection) {
+                    Slider(
+                        value = sliderValue,
+                        onValueChange = { sliderValue = it },
+                        onValueChangeFinished = {
+                            viewModel.requestPage(sliderValue.roundToInt())
+                        },
+                        valueRange = 0f..(ready.pageCount - 1).toFloat(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .semantics { contentDescription = sliderLabel }
+                    )
+                }
+            }
         }
     }
 }
@@ -156,15 +196,18 @@ private fun SinglePager(
 ) {
     val pagerState = rememberPagerState(initialPage = viewModel.currentPage) { ready.pageCount }
     LaunchedEffect(pagerState.settledPage) { onPageChanged(pagerState.settledPage) }
+    SeekHandler(viewModel, pagerState) { it }
 
     HorizontalPager(
         state = pagerState,
         beyondViewportPageCount = 1,
         modifier = Modifier.fillMaxSize()
     ) { page ->
-        ZoomableBox(resetKey = page, onTap = onTap) {
+        ZoomableBox(resetKey = page, onTap = onTap) { renderScale ->
             PageImage(
                 page = page,
+                pageCount = ready.pageCount,
+                renderScale = renderScale,
                 render = viewModel::renderPage,
                 modifier = Modifier.fillMaxSize()
             )
@@ -184,6 +227,9 @@ private fun SpreadPager(
         initialPage = spreadIndexOfPage(viewModel.currentPage).coerceAtMost(spreads.lastIndex)
     ) { spreads.size }
     LaunchedEffect(pagerState.settledPage) { onPageChanged(spreads[pagerState.settledPage].first) }
+    SeekHandler(viewModel, pagerState) { page ->
+        spreadIndexOfPage(page).coerceIn(0, spreads.lastIndex)
+    }
 
     HorizontalPager(
         state = pagerState,
@@ -191,7 +237,7 @@ private fun SpreadPager(
         modifier = Modifier.fillMaxSize()
     ) { index ->
         val spread = spreads[index]
-        ZoomableBox(resetKey = index, onTap = onTap) {
+        ZoomableBox(resetKey = index, onTap = onTap) { renderScale ->
             // Row start = right in RTL, left in LTR — reading order for free.
             Row(
                 modifier = Modifier.fillMaxSize(),
@@ -199,6 +245,8 @@ private fun SpreadPager(
             ) {
                 PageImage(
                     page = spread.first,
+                    pageCount = ready.pageCount,
+                    renderScale = renderScale,
                     render = viewModel::renderPage,
                     modifier = Modifier
                         .weight(1f)
@@ -207,6 +255,8 @@ private fun SpreadPager(
                 if (spread.second != null) {
                     PageImage(
                         page = spread.second,
+                        pageCount = ready.pageCount,
+                        renderScale = renderScale,
                         render = viewModel::renderPage,
                         modifier = Modifier
                             .weight(1f)
@@ -218,15 +268,36 @@ private fun SpreadPager(
     }
 }
 
-/** Pinch to zoom (1x–5x), one-finger pan while zoomed, double-tap toggle. */
+/** Applies slider jumps to whichever pager is currently mounted. */
+@Composable
+private fun SeekHandler(
+    viewModel: ReaderViewModel,
+    pagerState: PagerState,
+    toPagerIndex: (page: Int) -> Int
+) {
+    LaunchedEffect(pagerState) {
+        viewModel.seekRequests.collect { page ->
+            pagerState.animateScrollToPage(toPagerIndex(page))
+        }
+    }
+}
+
+/**
+ * Pinch to zoom (1x–5x), one-finger pan while zoomed, double-tap toggle.
+ *
+ * [content] receives a quantized render scale: zooming used to only stretch
+ * the viewport-width bitmap, so a 5x zoom on a scanned page showed nothing but
+ * bigger blur. Quantizing to whole steps keeps it to at most two re-renders.
+ */
 @Composable
 private fun ZoomableBox(
     resetKey: Any?,
     onTap: () -> Unit,
-    content: @Composable () -> Unit
+    content: @Composable (renderScale: Float) -> Unit
 ) {
     var scale by remember(resetKey) { mutableFloatStateOf(1f) }
     var offset by remember(resetKey) { mutableStateOf(Offset.Zero) }
+    val renderScale = scale.roundToInt().coerceIn(1, MAX_RENDER_SCALE).toFloat()
 
     Box(
         modifier = Modifier
@@ -274,7 +345,7 @@ private fun ZoomableBox(
                     translationY = offset.y
                 }
         ) {
-            content()
+            content(renderScale)
         }
     }
 }
@@ -282,23 +353,38 @@ private fun ZoomableBox(
 @Composable
 private fun PageImage(
     page: Int,
+    pageCount: Int,
+    renderScale: Float,
     render: suspend (page: Int, targetWidth: Int) -> Bitmap?,
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        val widthPx = constraints.maxWidth.coerceAtLeast(1)
+        val baseWidth = constraints.maxWidth.coerceAtLeast(1)
+        val targetWidth = (baseWidth * renderScale).toInt()
+            .coerceIn(1, baseWidth * MAX_RENDER_SCALE)
         var failed by remember(page) { mutableStateOf(false) }
-        var bitmap by remember(page, widthPx) { mutableStateOf<Bitmap?>(null) }
-        LaunchedEffect(page, widthPx) {
-            val rendered = render(page, widthPx)
-            bitmap = rendered
-            if (rendered == null) failed = true
+        // Keyed on the page only: a re-render at a higher zoom keeps showing
+        // the previous bitmap instead of flashing a spinner.
+        var bitmap by remember(page) { mutableStateOf<Bitmap?>(null) }
+        LaunchedEffect(page, targetWidth) {
+            val rendered = render(page, targetWidth)
+            if (rendered != null) {
+                bitmap = rendered
+                failed = false
+            } else if (bitmap == null) {
+                failed = true
+            }
         }
         val current = bitmap
+        val description = stringResource(
+            R.string.reader_page_position,
+            formatCount(page + 1),
+            formatCount(pageCount)
+        )
         when {
             current != null -> Image(
                 bitmap = current.asImageBitmap(),
-                contentDescription = null,
+                contentDescription = description,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
             )
@@ -307,7 +393,9 @@ private fun PageImage(
                 color = Color.White,
                 style = MaterialTheme.typography.bodyMedium
             )
-            else -> CircularProgressIndicator()
+            else -> CircularProgressIndicator(
+                modifier = Modifier.semantics { contentDescription = description }
+            )
         }
     }
 }

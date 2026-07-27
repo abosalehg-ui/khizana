@@ -1,13 +1,17 @@
-package com.abosalehg.khizana.domain.repo
+package com.abosalehg.khizana.data.repo
 
+import android.util.Log
+import com.abosalehg.khizana.data.covers.CoverStore
 import com.abosalehg.khizana.data.db.BookDao
 import com.abosalehg.khizana.data.db.BookEntity
 import com.abosalehg.khizana.data.db.BookTagCrossRef
 import com.abosalehg.khizana.data.db.ExcludedFolderDao
+import com.abosalehg.khizana.data.db.ExcludedFolderEntity
 import com.abosalehg.khizana.data.db.TagDao
-import com.abosalehg.khizana.data.db.TagEntity
 import com.abosalehg.khizana.data.db.TopicDao
 import com.abosalehg.khizana.data.db.TopicEntity
+import com.abosalehg.khizana.data.db.TransactionRunner
+import com.abosalehg.khizana.data.db.getOrCreate
 import com.abosalehg.khizana.data.scanner.FileFingerprint
 import com.abosalehg.khizana.data.scanner.LibraryScanner
 import com.abosalehg.khizana.domain.model.Book
@@ -16,10 +20,12 @@ import com.abosalehg.khizana.domain.model.BookStatus
 import com.abosalehg.khizana.domain.model.ReadingDirection
 import com.abosalehg.khizana.domain.model.Tag
 import com.abosalehg.khizana.domain.model.Topic
+import com.abosalehg.khizana.util.manualThenNaturalComparator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,7 +43,8 @@ class LibraryRepository @Inject constructor(
     private val tagDao: TagDao,
     private val excludedFolderDao: ExcludedFolderDao,
     private val scanner: LibraryScanner,
-    private val coverStore: com.abosalehg.khizana.data.covers.CoverStore
+    private val coverStore: CoverStore,
+    private val transaction: TransactionRunner
 ) {
 
     /** Books the shelves can show (not hidden, present on disk). */
@@ -61,27 +68,26 @@ class LibraryRepository @Inject constructor(
      * Drops [draggedId] onto [targetId]: the dragged book is inserted right
      * before the target within the target's shelf (moving shelves if
      * needed), and the whole shelf's manualOrder is rewritten 1..n.
+     *
+     * Only the target shelf is read, and the rewrite is one transaction, so an
+     * interrupted drop can never leave a partially renumbered shelf.
      */
     suspend fun reorderBook(draggedId: String, targetId: String) {
         if (draggedId == targetId) return
-        val all = bookDao.getAll()
-        val target = all.firstOrNull { it.id == targetId } ?: return
-        val dragged = all.firstOrNull { it.id == draggedId } ?: return
-        val ordering = com.abosalehg.khizana.util.manualThenNaturalComparator<BookEntity>(
-            { it.manualOrder }, { it.title }
-        )
-        val shelfBooks = all
-            .filter {
-                it.topicId == target.topicId && !it.isHidden &&
-                    it.status != BookStatus.MISSING.name && it.id != draggedId
-            }
+        val target = bookDao.getById(targetId) ?: return
+        val dragged = bookDao.getById(draggedId) ?: return
+        val ordering = manualThenNaturalComparator<BookEntity>({ it.manualOrder }, { it.title })
+        val shelfBooks = bookDao.booksOnShelf(target.topicId)
+            .filter { it.id != draggedId }
             .sortedWith(ordering)
             .toMutableList()
         val insertAt = shelfBooks.indexOfFirst { it.id == targetId }.coerceAtLeast(0)
         shelfBooks.add(insertAt, dragged)
-        if (dragged.topicId != target.topicId) bookDao.updateTopic(draggedId, target.topicId)
-        shelfBooks.forEachIndexed { index, book ->
-            if (book.manualOrder != index + 1) bookDao.updateManualOrder(book.id, index + 1)
+        transaction {
+            if (dragged.topicId != target.topicId) bookDao.updateTopic(draggedId, target.topicId)
+            shelfBooks.forEachIndexed { index, book ->
+                if (book.manualOrder != index + 1) bookDao.updateManualOrder(book.id, index + 1)
+            }
         }
     }
 
@@ -91,7 +97,7 @@ class LibraryRepository @Inject constructor(
     }
 
     /** Deleting a shelf never deletes books — they return to the New shelf. */
-    suspend fun deleteTopic(topicId: Long) {
+    suspend fun deleteTopic(topicId: Long) = transaction {
         bookDao.clearTopic(topicId)
         topicDao.delete(topicId)
     }
@@ -110,7 +116,7 @@ class LibraryRepository @Inject constructor(
         excludedFolderDao.observeAll().map { list -> list.map { it.path } }
 
     suspend fun addExcludedFolder(path: String) =
-        excludedFolderDao.insert(com.abosalehg.khizana.data.db.ExcludedFolderEntity(path))
+        excludedFolderDao.insert(ExcludedFolderEntity(path))
 
     suspend fun removeExcludedFolder(path: String) = excludedFolderDao.delete(path)
 
@@ -119,14 +125,24 @@ class LibraryRepository @Inject constructor(
     /**
      * Deletes the file from disk and the book's row + tag links. Returns
      * false (and keeps everything) if the file exists but can't be deleted.
+     *
+     * The file goes first on purpose: a filesystem delete cannot be rolled
+     * back, so if it fails we still hold every row. The database cleanup that
+     * follows is one transaction — worst case a crash between the two leaves a
+     * row whose file is gone, which the next rescan marks MISSING.
      */
     suspend fun deleteBookPermanently(book: Book): Boolean = withContext(Dispatchers.IO) {
-        val file = java.io.File(book.path)
-        if (file.exists() && !file.delete()) return@withContext false
+        val file = File(book.path)
+        if (file.exists() && !file.delete()) {
+            Log.w(TAG, "Refusing to drop ${book.id}: its file could not be deleted")
+            return@withContext false
+        }
         coverStore.delete(book.id)
-        bookDao.deleteTagRefsForBook(book.id)
-        bookDao.deleteById(book.id)
-        tagDao.pruneUnused()
+        transaction {
+            bookDao.deleteTagRefsForBook(book.id)
+            bookDao.deleteById(book.id)
+            tagDao.pruneUnused()
+        }
         true
     }
 
@@ -142,24 +158,26 @@ class LibraryRepository @Inject constructor(
         tagDao.tagIdsForBook(bookId).toSet()
 
     /** Replaces a book's tag set; creates tags by name as needed, prunes orphans. */
-    suspend fun setTagsForBook(bookId: String, tagIds: Set<Long>, newTagNames: List<String>) {
-        val resolvedIds = tagIds.toMutableSet()
-        newTagNames.map { it.trim() }.filter { it.isNotEmpty() }.forEach { name ->
-            val existing = tagDao.findByName(name)
-            val id = existing?.id ?: tagDao.insert(TagEntity(name = name))
-                .takeIf { it > 0 } ?: tagDao.findByName(name)?.id
-            id?.let { resolvedIds.add(it) }
+    suspend fun setTagsForBook(bookId: String, tagIds: Set<Long>, newTagNames: List<String>) =
+        transaction {
+            val resolvedIds = tagIds.toMutableSet()
+            newTagNames.forEach { name ->
+                tagDao.getOrCreate(name)?.let { resolvedIds.add(it) }
+            }
+            val current = tagDao.tagIdsForBook(bookId).toSet()
+            (resolvedIds - current).forEach { tagDao.addRef(BookTagCrossRef(bookId, it)) }
+            (current - resolvedIds).forEach { tagDao.removeRef(bookId, it) }
+            tagDao.pruneUnused()
         }
-        val current = tagDao.tagIdsForBook(bookId).toSet()
-        (resolvedIds - current).forEach { tagDao.addRef(BookTagCrossRef(bookId, it)) }
-        (current - resolvedIds).forEach { tagDao.removeRef(bookId, it) }
-        tagDao.pruneUnused()
-    }
 
     /**
      * Full manual rescan. Never deletes rows: new fingerprints are inserted,
      * known fingerprints get their location refreshed (progress/hidden/topic
      * untouched), and vanished files are silently marked MISSING.
+     *
+     * Fingerprinting is I/O bound and stays outside any transaction; the
+     * resulting writes are applied in batches so a kill mid-scan leaves whole
+     * batches applied rather than a half-written row.
      */
     suspend fun rescan(
         deep: Boolean = false,
@@ -169,17 +187,18 @@ class LibraryRepository @Inject constructor(
         val found = scanner.scan(deep, excluded)
         val known = bookDao.getAll().associateBy { it.id }
         val seenIds = HashSet<String>(found.size)
-        var added = 0
-        var relocated = 0
+        val inserts = ArrayList<BookEntity>()
+        val relocations = ArrayList<Relocation>()
 
         found.forEachIndexed { index, scanned ->
             val file = scanned.file
-            val id = runCatching { FileFingerprint.compute(file) }.getOrNull()
+            val id = runCatching { FileFingerprint.compute(file) }
+                .onFailure { Log.w(TAG, "Cannot fingerprint ${file.name}", it) }
+                .getOrNull()
             if (id != null && seenIds.add(id)) {
                 val existing = known[id]
                 if (existing == null) {
-                    bookDao.insert(newEntity(id, scanned.format, file.absolutePath, file))
-                    added++
+                    inserts += newEntity(id, scanned.format, file)
                 } else {
                     val restoredStatus =
                         if (existing.status == BookStatus.MISSING.name) BookStatus.OK.name
@@ -188,47 +207,72 @@ class LibraryRepository @Inject constructor(
                         existing.status != restoredStatus ||
                         existing.fileSize != file.length()
                     if (moved) {
-                        bookDao.updateLocation(
+                        relocations += Relocation(
                             id = id,
                             path = file.absolutePath,
                             fileName = file.name,
                             fileSize = file.length(),
                             status = restoredStatus
                         )
-                        relocated++
                     }
                 }
             }
-            onProgress(index + 1, found.size)
+            // One WorkManager progress write per file would mean one database
+            // write per file; report on a stride instead.
+            if (index % PROGRESS_UPDATE_EVERY == 0 || index == found.lastIndex) {
+                onProgress(index + 1, found.size)
+            }
         }
 
         val vanished = known.values
             .filter { it.id !in seenIds && it.status != BookStatus.MISSING.name }
             .map { it.id }
-        vanished.chunked(500).forEach { bookDao.markMissing(it) }
+
+        inserts.chunked(WRITE_BATCH).forEach { batch ->
+            transaction { batch.forEach { bookDao.insert(it) } }
+        }
+        relocations.chunked(WRITE_BATCH).forEach { batch ->
+            transaction {
+                batch.forEach {
+                    bookDao.updateLocation(it.id, it.path, it.fileName, it.fileSize, it.status)
+                }
+            }
+        }
+        vanished.chunked(WRITE_BATCH).forEach { batch ->
+            transaction { bookDao.markMissing(batch) }
+        }
 
         ScanReport(
             scanned = found.size,
-            added = added,
-            relocated = relocated,
+            added = inserts.size,
+            relocated = relocations.size,
             missing = vanished.size
         )
     }
 
-    private fun newEntity(
-        id: String,
-        format: BookFormat,
-        path: String,
-        file: java.io.File
-    ): BookEntity = BookEntity(
+    private fun newEntity(id: String, format: BookFormat, file: File): BookEntity = BookEntity(
         id = id,
-        path = path,
+        path = file.absolutePath,
         fileName = file.name,
         format = format.name,
         title = file.nameWithoutExtension,
         fileSize = file.length(),
         addedAt = System.currentTimeMillis()
     )
+
+    private data class Relocation(
+        val id: String,
+        val path: String,
+        val fileName: String,
+        val fileSize: Long,
+        val status: String
+    )
+
+    private companion object {
+        const val TAG = "LibraryRepository"
+        const val PROGRESS_UPDATE_EVERY = 50
+        const val WRITE_BATCH = 500
+    }
 }
 
 internal fun BookEntity.toDomain(): Book = Book(

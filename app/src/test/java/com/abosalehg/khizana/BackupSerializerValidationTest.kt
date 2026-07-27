@@ -1,0 +1,87 @@
+package com.abosalehg.khizana
+
+import com.abosalehg.khizana.data.backup.BackupFormatException
+import com.abosalehg.khizana.data.backup.BackupSerializer
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Test
+
+/**
+ * A backup file is user-supplied input. These cover the checks that keep a
+ * hand-edited or hostile file from reaching the database — in particular the
+ * book id, which becomes a file name in the cover store.
+ */
+class BackupSerializerValidationTest {
+
+    private fun payload(books: String = "[]", version: String = "1") =
+        """{"version": $version, "books": $books, "topics": [], "tags": [], """ +
+            """"bookTags": [], "excludedFolders": []}"""
+
+    private val validId = "0123456789abcdef".repeat(4)
+
+    private fun book(id: String, extra: String = "") =
+        """[{"id": "$id", "fileName": "b.pdf", "format": "PDF", "title": "b"$extra}]"""
+
+    @Test
+    fun aFileWithoutAVersionIsRejected() {
+        val json = """{"books": [], "topics": [], "tags": [], "bookTags": [], """ +
+            """"excludedFolders": []}"""
+        assertThrows(BackupFormatException::class.java) { BackupSerializer.fromJson(json) }
+    }
+
+    @Test
+    fun aNewerFormatVersionIsRejectedRatherThanPartlyApplied() {
+        assertThrows(BackupFormatException::class.java) {
+            BackupSerializer.fromJson(payload(version = "2"))
+        }
+    }
+
+    @Test
+    fun nonJsonInputIsRejected() {
+        assertThrows(BackupFormatException::class.java) {
+            BackupSerializer.fromJson("this is not a backup")
+        }
+    }
+
+    @Test
+    fun aTraversalStyleBookIdIsRejected() {
+        assertThrows(BackupFormatException::class.java) {
+            BackupSerializer.fromJson(payload(book("../../databases/khizana")))
+        }
+    }
+
+    @Test
+    fun aShortOrNonHexBookIdIsRejected() {
+        assertThrows(BackupFormatException::class.java) {
+            BackupSerializer.fromJson(payload(book("deadbeef")))
+        }
+        assertThrows(BackupFormatException::class.java) {
+            BackupSerializer.fromJson(payload(book("Z".repeat(64))))
+        }
+    }
+
+    @Test
+    fun aBareFingerprintIsAccepted() {
+        val data = BackupSerializer.fromJson(payload(book(validId)))
+        assertEquals(validId, data.books.single().id)
+    }
+
+    @Test
+    fun outOfRangeNumbersAreClampedInsteadOfStored() {
+        val data = BackupSerializer.fromJson(
+            payload(book(validId, """, "progress": 7.5, "pageCount": -3, "fileSize": -1"""))
+        )
+        val book = data.books.single()
+        assertEquals(1f, book.progress, 0f)
+        assertEquals(0, book.pageCount)
+        assertEquals(0L, book.fileSize)
+    }
+
+    @Test
+    fun negativeProgressIsClampedToZero() {
+        val data = BackupSerializer.fromJson(
+            payload(book(validId, """, "progress": -2.0"""))
+        )
+        assertEquals(0f, data.books.single().progress, 0f)
+    }
+}

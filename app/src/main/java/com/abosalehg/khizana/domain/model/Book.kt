@@ -1,5 +1,7 @@
 package com.abosalehg.khizana.domain.model
 
+import com.abosalehg.khizana.util.enumOrNull
+
 /** Supported book file formats. EPUB is reserved for a later milestone. */
 enum class BookFormat {
     PDF,
@@ -7,8 +9,7 @@ enum class BookFormat {
     EPUB;
 
     companion object {
-        fun fromName(name: String?): BookFormat? =
-            entries.firstOrNull { it.name == name }
+        fun fromName(name: String?): BookFormat? = enumOrNull<BookFormat>(name)
 
         /** Maps a lowercase file extension to a format, or null if unsupported. */
         fun fromExtension(extension: String): BookFormat? = when (extension.lowercase()) {
@@ -27,8 +28,7 @@ enum class BookStatus {
     MISSING;
 
     companion object {
-        fun fromName(name: String?): BookStatus =
-            entries.firstOrNull { it.name == name } ?: OK
+        fun fromName(name: String?): BookStatus = enumOrNull<BookStatus>(name) ?: OK
     }
 }
 
@@ -39,8 +39,7 @@ enum class ReadingDirection {
     AUTO;
 
     companion object {
-        fun fromName(name: String?): ReadingDirection =
-            entries.firstOrNull { it.name == name } ?: AUTO
+        fun fromName(name: String?): ReadingDirection = enumOrNull<ReadingDirection>(name) ?: AUTO
     }
 }
 

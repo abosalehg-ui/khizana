@@ -7,14 +7,16 @@ import com.abosalehg.khizana.domain.model.ThemeMode
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/**
+ * Owns nothing but the app-wide theme, which the root composable needs before
+ * any screen exists. Changing the theme lives in `SettingsViewModel`.
+ */
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val settingsRepository: SettingsRepository
+    settingsRepository: SettingsRepository
 ) : ViewModel() {
 
     val themeMode: StateFlow<ThemeMode> = settingsRepository.themeMode
@@ -23,13 +25,4 @@ class MainViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = ThemeMode.SYSTEM
         )
-
-    /** Temporary M0 affordance: cycles SYSTEM → LIGHT → DARK → SYSTEM. */
-    fun cycleThemeMode() {
-        viewModelScope.launch {
-            val current = settingsRepository.themeMode.first()
-            val next = ThemeMode.entries[(current.ordinal + 1) % ThemeMode.entries.size]
-            settingsRepository.setThemeMode(next)
-        }
-    }
 }

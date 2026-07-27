@@ -8,7 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.abosalehg.khizana.domain.repo.LibraryRepository
+import com.abosalehg.khizana.data.repo.LibraryRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 

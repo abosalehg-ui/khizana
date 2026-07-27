@@ -4,13 +4,14 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abosalehg.khizana.data.backup.BackupManager
+import com.abosalehg.khizana.data.repo.LibraryRepository
 import com.abosalehg.khizana.data.settings.SettingsRepository
 import com.abosalehg.khizana.domain.model.ThemeMode
-import com.abosalehg.khizana.domain.repo.LibraryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -31,12 +32,12 @@ class SettingsViewModel @Inject constructor(
     val excludedFolders: StateFlow<List<String>> = libraryRepository.excludedFolders
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    fun cycleThemeMode() {
-        viewModelScope.launch {
-            val current = settingsRepository.themeMode.first()
-            val next = ThemeMode.entries[(current.ordinal + 1) % ThemeMode.entries.size]
-            settingsRepository.setThemeMode(next)
-        }
+    /** True while an export or import is running, so the buttons can disable. */
+    private val _backupRunning = MutableStateFlow(false)
+    val backupRunning: StateFlow<Boolean> = _backupRunning.asStateFlow()
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { settingsRepository.setThemeMode(mode) }
     }
 
     fun setDeepScan(enabled: Boolean) {
@@ -52,10 +53,26 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun backup(uri: Uri, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch { onResult(backupManager.exportTo(uri)) }
+        if (_backupRunning.value) return
+        viewModelScope.launch {
+            _backupRunning.value = true
+            try {
+                onResult(backupManager.exportTo(uri))
+            } finally {
+                _backupRunning.value = false
+            }
+        }
     }
 
     fun restore(uri: Uri, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch { onResult(backupManager.importFrom(uri)) }
+        if (_backupRunning.value) return
+        viewModelScope.launch {
+            _backupRunning.value = true
+            try {
+                onResult(backupManager.importFrom(uri))
+            } finally {
+                _backupRunning.value = false
+            }
+        }
     }
 }

@@ -8,20 +8,25 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.abosalehg.khizana.data.repo.LibraryRepository
 import com.abosalehg.khizana.data.scanner.StoragePermission
 import com.abosalehg.khizana.data.settings.SettingsRepository
 import com.abosalehg.khizana.domain.model.Book
-import com.abosalehg.khizana.domain.repo.LibraryRepository
-import com.abosalehg.khizana.util.matchesSearch
 import com.abosalehg.khizana.util.normalizeForSearch
 import com.abosalehg.khizana.work.ScanWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -36,6 +41,25 @@ data class ScanUiState(
     val lastRelocated: Int = 0,
     val lastMissing: Int = 0
 )
+
+/**
+ * [loading] stays true until the first database emission, so the shelves no
+ * longer flash an "empty library" message on every cold start. [hasAnyBook]
+ * separates a genuinely empty library from a filter that matched nothing.
+ */
+data class LibraryUiState(
+    val loading: Boolean = true,
+    val shelves: List<Shelf> = emptyList(),
+    /**
+     * Distinct books after filtering. Summing shelf sizes double-counts:
+     * anything on "Continue reading" also stands on its own shelf.
+     */
+    val bookCount: Int = 0,
+    val hasAnyBook: Boolean = false
+)
+
+/** A book plus its pre-normalized search text, computed once per DB emission. */
+private data class IndexedBook(val book: Book, val searchBlob: String)
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
@@ -56,31 +80,70 @@ class LibraryViewModel @Inject constructor(
     val tags = repository.tags
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val shelves: StateFlow<List<Shelf>> =
+    /**
+     * Search text is normalized once per book per database emission instead of
+     * three times per book per keystroke.
+     */
+    private val indexedBooks: Flow<List<IndexedBook>> = repository.visibleBooks
+        .map { books ->
+            books.map { book ->
+                IndexedBook(
+                    book = book,
+                    searchBlob = normalizeForSearch(
+                        buildString {
+                            append(book.title).append('\n')
+                            append(book.fileName)
+                            book.author?.let { append('\n').append(it) }
+                        }
+                    )
+                )
+            }
+        }
+        .flowOn(Dispatchers.Default)
+
+    @OptIn(FlowPreview::class)
+    private val debouncedQuery: Flow<String> = _searchQuery
+        .map { it.trim() }
+        .distinctUntilChanged()
+        // Clearing the field must feel instant; typing waits for a pause.
+        .debounce { query -> if (query.isEmpty()) 0L else SEARCH_DEBOUNCE_MS }
+
+    /**
+     * Grouping, sorting and filtering all run on [Dispatchers.Default]. They
+     * used to run on the main thread for every keystroke and every database
+     * emission, which is an ANR waiting to happen on a large library.
+     */
+    val libraryState: StateFlow<LibraryUiState> =
         combine(
             repository.topics,
-            repository.visibleBooks,
+            indexedBooks,
             repository.bookTagRefs,
             _selectedTagId,
-            _searchQuery
-        ) { topics, books, refs, tagId, query ->
-            var shelves = buildShelves(topics, books)
+            debouncedQuery
+        ) { topics, indexed, refs, tagId, query ->
+            var shelves = buildShelves(topics, indexed.map { it.book })
             tagId?.let { id ->
                 val tagged = refs.filter { it.tagId == id }.mapTo(HashSet()) { it.bookId }
                 shelves = filterShelvesByBookIds(shelves, tagged)
             }
-            val trimmed = query.trim()
-            if (trimmed.isNotEmpty()) {
-                val normalized = normalizeForSearch(trimmed)
-                val matching = books.filter { book ->
-                    matchesSearch(book.title, normalized) ||
-                        matchesSearch(book.fileName, normalized) ||
-                        (book.author?.let { matchesSearch(it, normalized) } == true)
-                }.mapTo(HashSet()) { it.id }
+            if (query.isNotEmpty()) {
+                val normalized = normalizeForSearch(query)
+                val matching = indexed
+                    .filter { it.searchBlob.contains(normalized) }
+                    .mapTo(HashSet()) { it.book.id }
                 shelves = filterShelvesByBookIds(shelves, matching)
             }
-            shelves
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+            LibraryUiState(
+                loading = false,
+                shelves = shelves,
+                bookCount = shelves
+                    .filter { it.kind != ShelfKind.CONTINUE_READING }
+                    .sumOf { it.books.size },
+                hasAnyBook = indexed.isNotEmpty()
+            )
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
     private val _permissionGranted = MutableStateFlow(StoragePermission.isGranted(context))
     val permissionGranted: StateFlow<Boolean> = _permissionGranted
@@ -132,6 +195,11 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch { repository.setBookHidden(bookId, true) }
     }
 
+    /** Backs a hide out again from the snackbar action. */
+    fun unhideBook(bookId: String) {
+        viewModelScope.launch { repository.setBookHidden(bookId, false) }
+    }
+
     fun selectTag(tagId: Long?) {
         _selectedTagId.value = tagId
     }
@@ -170,5 +238,9 @@ class LibraryViewModel @Inject constructor(
             )
             else -> ScanUiState()
         }
+    }
+
+    private companion object {
+        const val SEARCH_DEBOUNCE_MS = 200L
     }
 }
