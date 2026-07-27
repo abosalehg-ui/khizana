@@ -1,4 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Default full backup. Cover images live in cacheDir, which Android
-     never includes in backups, so no exclude rules are needed. -->
-<full-backup-content />
+<!--
+  Android 11 and below (android:fullBackupContent).
+
+  Khizana promises that nothing leaves the device. The system backup transport
+  is not the app's own network access, so a plain android:allowBackup="true"
+  would still ship khizana.db (every book path, title, reading position and
+  hidden flag) plus filesDir/covers to Google Drive. Backup is therefore off
+  in the manifest, and every domain is excluded here as defence in depth in
+  case a build ever re-enables it.
+
+  Note: covers live in filesDir/covers (see CoverStore), NOT cacheDir — they
+  are inside the backup set and must be excluded explicitly.
+
+  Users who want a backup have the in-app JSON export in Settings, which they
+  place wherever they choose.
+-->
+<full-backup-content>
+    <exclude domain="root" path="." />
+    <exclude domain="file" path="." />
+    <exclude domain="database" path="." />
+    <exclude domain="sharedpref" path="." />
+    <exclude domain="external" path="." />
+</full-backup-content>

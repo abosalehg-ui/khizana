@@ -1,7 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Default cloud-backup and device-transfer rules. Cover images live in
-     cacheDir, which Android never includes in backups or transfers. -->
+<!--
+  Android 12+ (android:dataExtractionRules).
+
+  Both cloud backup and device-to-device transfer are fully excluded: the
+  library database and generated covers are private reading history, and the
+  app's promise is that they never leave the device by any route. Settings
+  offers an explicit JSON export for users who want a backup.
+-->
 <data-extraction-rules>
-    <cloud-backup />
-    <device-transfer />
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+    </device-transfer>
 </data-extraction-rules>

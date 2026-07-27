@@ -9,6 +9,9 @@ import androidx.compose.ui.unit.dp
 /**
  * Design tokens for the wooden shelf rendering. Kept outside Material's
  * ColorScheme because they describe the shelf illustration, not the UI chrome.
+ *
+ * Every token here is read by the shelf UI — tokens that nothing consumes are
+ * not a design system, they are decoration, so they get deleted instead.
  */
 @Immutable
 data class WoodTokens(
@@ -21,15 +24,8 @@ data class WoodTokens(
     val goldSoft: Color,
     /** Height of the shelf plank under each book row. */
     val plankHeight: Dp = 14.dp,
-    /** Front edge overlapping the bottom of the books (drawn above them). */
-    val frontEdgeHeight: Dp = 8.dp,
-    /** Opacity of the book reflection on the plank surface. */
-    val reflectionAlpha: Float = 0.12f,
     /** Cover aspect ratio: width / height, locked to 2:3. */
     val coverAspectRatio: Float = 2f / 3f,
-    /** Press feedback on a book. */
-    val pressRotationZ: Float = -3f,
-    val pressScale: Float = 0.97f,
     /** Golden progress bar under a cover. */
     val progressBarHeight: Dp = 3.dp
 )

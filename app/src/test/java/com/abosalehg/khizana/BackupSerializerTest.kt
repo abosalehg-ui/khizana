@@ -13,10 +13,14 @@ import org.junit.Test
 
 class BackupSerializerTest {
 
+    // Book ids are content fingerprints; the parser now rejects anything else.
+    private val idTarikh = "1".repeat(64)
+    private val idComic = "2".repeat(64)
+
     private val sample = BackupData(
         books = listOf(
             BackupBook(
-                id = "abc123",
+                id = idTarikh,
                 fileName = "تاريخ الطبري.pdf",
                 format = "PDF",
                 title = "تاريخ الطبري",
@@ -33,7 +37,7 @@ class BackupSerializerTest {
                 lastReadAt = 222
             ),
             BackupBook(
-                id = "def456",
+                id = idComic,
                 fileName = "comic.cbz",
                 format = "CBZ",
                 title = "comic",
@@ -52,7 +56,7 @@ class BackupSerializerTest {
         ),
         topics = listOf(BackupTopic(7, "تاريخ", 0)),
         tags = listOf(BackupTag(1, "مفضلة")),
-        bookTags = listOf(BackupRef("abc123", 1)),
+        bookTags = listOf(BackupRef(idTarikh, 1)),
         excludedFolders = listOf("/storage/emulated/0/Recordings")
     )
 
@@ -65,11 +69,11 @@ class BackupSerializerTest {
     @Test
     fun `nullable fields survive as real nulls`() {
         val restored = BackupSerializer.fromJson(BackupSerializer.toJson(sample))
-        val comic = restored.books.first { it.id == "def456" }
+        val comic = restored.books.first { it.id == idComic }
         assertNull(comic.topicId)
         assertNull(comic.locator)
         assertNull(comic.lastReadAt)
-        assertNull(restored.books.first { it.id == "abc123" }.author)
+        assertNull(restored.books.first { it.id == idTarikh }.author)
     }
 
     @Test

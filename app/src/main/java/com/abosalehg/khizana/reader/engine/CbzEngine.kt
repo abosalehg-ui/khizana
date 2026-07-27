@@ -2,6 +2,7 @@ package com.abosalehg.khizana.reader.engine
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import com.abosalehg.khizana.data.covers.CbzCover
 import java.io.File
 import java.util.zip.ZipFile
@@ -28,16 +29,25 @@ class CbzEngine private constructor(
                 inSampleSize = CbzCover.sampleSize(bounds.outWidth, targetWidth.coerceAtLeast(1))
             }
             zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, options) }
+        } catch (e: OutOfMemoryError) {
+            // A decompression bomb is a page we skip, not a crash: Error is not
+            // an Exception and would otherwise take the whole process down.
+            Log.w(TAG, "Out of memory decoding entry $name", e)
+            null
         } catch (e: Exception) {
+            Log.w(TAG, "Failed to decode entry $name", e)
             null
         }
     }
 
     override fun close() {
         runCatching { zip.close() }
+            .onFailure { Log.w(TAG, "Failed to close archive", it) }
     }
 
     companion object {
+        private const val TAG = "CbzEngine"
+
         fun open(file: File): EngineOpenResult = try {
             val zip = ZipFile(file)
             val pages = CbzCover.sortedImageEntries(
@@ -45,11 +55,13 @@ class CbzEngine private constructor(
             )
             if (pages.isEmpty()) {
                 zip.close()
+                Log.w(TAG, "${file.name} holds no decodable image entries")
                 EngineOpenResult.Corrupt
             } else {
                 EngineOpenResult.Success(CbzEngine(zip, pages))
             }
         } catch (e: Exception) {
+            Log.w(TAG, "Cannot open ${file.name} as a CBZ archive", e)
             EngineOpenResult.Corrupt
         }
     }

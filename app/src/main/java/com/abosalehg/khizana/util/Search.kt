@@ -18,6 +18,13 @@ fun normalizeForSearch(text: String): String = buildString(text.length) {
     }
 }
 
-/** Case/diacritic-insensitive containment; query must be pre-normalized. */
+/**
+ * Case/diacritic-insensitive containment; query must be pre-normalized.
+ *
+ * Convenience for one-off checks. The library screen does **not** use this —
+ * it normalizes each book once per database emission and matches against the
+ * stored blob, because normalizing the haystack on every keystroke is what
+ * used to put the search on the main thread's critical path.
+ */
 fun matchesSearch(haystack: String, normalizedQuery: String): Boolean =
     normalizeForSearch(haystack).contains(normalizedQuery)

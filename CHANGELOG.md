@@ -6,6 +6,86 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Hardening — review follow-up
+
+Security, correctness, performance, accessibility and documentation fixes from
+a full-repository review. No new features.
+
+**Security & privacy**
+
+- Dropped `com.github.mhiew:pdfium-android` (last published May 2022) for the
+  platform `android.graphics.pdf.PdfRenderer`. PDF parsing is a memory-unsafe
+  surface fed by untrusted files inside a process holding All Files Access; the
+  platform renderer is patched through Play system updates, a vendored native
+  parser is not. Password-protected files are still detected (`SecurityException`).
+- Turned off Android's cloud backup (`allowBackup="false"` plus explicit
+  exclusions in both rule files). The database and covers were being uploaded to
+  Google Drive, contradicting the app's central promise — and the old comment
+  claiming covers live in `cacheDir` was simply wrong, they live in `filesDir`.
+- Backup files are validated before they touch the database: format version
+  checked, book ids required to be bare SHA-256 fingerprints (they become file
+  names in the cover store, so `../` was reachable), reads capped at 32 MB
+  (`readBytes()` on a picked file could OOM the process), numeric fields clamped.
+- `CoverStore` refuses any id that is not a fingerprint.
+- CI validates the committed Gradle wrapper JAR before running it, and reviews
+  dependencies on pull requests.
+
+**Correctness**
+
+- Every multi-step write now runs in a transaction (`TransactionRunner`):
+  rescan (in batches), restore, shelf reorder, shelf delete, permanent delete.
+- `OutOfMemoryError` is caught where images are decoded; it is an `Error`, so
+  `catch (Exception)` let a single oversized page kill the whole worker.
+- Logging added throughout — the app previously had none at all, so every
+  swallowed failure was undiagnosable.
+- Database v2 with a real migration adds indices on `topicId`,
+  `(isHidden, status)` and `addedAt`; `exportSchema` is on so future migrations
+  are testable.
+
+**Performance**
+
+- Shelf grouping, sorting and search filtering moved off the main thread, with
+  the search text debounced and normalized once per book per database emission
+  instead of three times per book per keystroke.
+- Scan progress is reported on a stride rather than once per file, which was one
+  WorkManager database write per file scanned.
+- Reordering reads only the target shelf instead of the entire library.
+- The reader caches rendered pages in an `LruCache` and re-renders at higher
+  zoom levels, so 5x zoom shows detail instead of a stretched viewport-width bitmap.
+
+**UX & accessibility**
+
+- Shelf rows are no longer clipped: a spine with a status badge, or a large font
+  scale, overflowed the fixed 120 dp row and cut the top off the covers.
+- Covers now honour the 2:3 ratio their own design token specifies, and scale
+  across compact/medium/expanded window widths.
+- The book overflow button is a full 48 dp target with a scrim behind the glyph;
+  it was 24 dp and invisible on pale covers.
+- "Move to shelf…" in the book menu — dragging was the only way to organise a
+  library, which excluded keyboard and screen-reader users entirely.
+- Real `TopAppBar` on every screen (the library header used to scroll away with
+  the settings button), snackbar with undo after hiding a book, an empty-library
+  state distinct from a no-search-results state, and a loading state.
+- Theme is a three-option segmented control instead of a blind cycling button.
+- Restore asks for confirmation and explains that it overwrites reading
+  positions; backup/restore disable their buttons and show progress.
+- The reader has a page slider, announces page numbers to screen readers, and
+  keeps the slider's direction matched to the book's.
+- Arabic plurals for book counts, and Western digits everywhere instead of
+  Arabic-Indic in the library and Western in the reader.
+
+**Housekeeping**
+
+- Repositories moved to `data.repo` (they import Room entities directly, so
+  calling them a domain layer was a fiction); `LibraryScreen.kt` split from 928
+  lines into six files.
+- Removed dead code: the duplicate `cycleThemeMode`, seven unused `WoodTokens`
+  fields, an unused string; extracted `TagDao.getOrCreate` and a generic
+  `enumOrNull` in place of four copies each.
+- README no longer advertises bookmarks, page inversion or designed fallback
+  covers — none of which exist; they are listed under Roadmap instead.
+
+
 ### M8 — Search, natural ordering, manual ordering & Continue Reading
 
 - `NaturalOrderComparator`: digit runs compare as numbers («المجلد 2» before «المجلد 10»), understanding Western, Arabic-Indic (٠-٩) and Eastern (۰-۹) digits, case-insensitive text, no overflow on long numbers. Applied to shelf ordering AND CBZ page order (page_2 before page_10 without zero padding).
@@ -20,7 +100,7 @@ project adheres to [Semantic Versioning](https://semver.org/).
 - Deep scan toggle (DataStore): scans walk all of external storage instead of MediaStore — slower but catches unindexed files; the scan button honors it automatically.
 - Excluded folders management: add via the system folder picker (SAF tree → filesystem path for primary/SD volumes; unsupported providers politely refused), remove with one tap; scans skip them (M1 filter, now user-editable).
 - Permanent delete from device («حذف من الجهاز» in the book menu, error-red): confirm dialog states it's irreversible; deletes the file, cover, DB row and tag links. If the file can't be deleted, nothing is touched.
-- Backup & restore to a user-chosen JSON file: shelves, tags, reading positions, hidden flags and excluded folders — keyed by content fingerprint, with **no paths stored**. Restoring on a new device inserts unknown books as MISSING; the first scan re-attaches them by fingerprint automatically. Topics/tags are merged by name.
+- Backup & restore to a user-chosen JSON file: shelves, tags, reading positions, hidden flags and excluded folders — keyed by content fingerprint, with **no paths stored**. Restoring on a new device inserts unknown books as MISSING; the first scan re-attaches them by fingerprint automatically. Topics/tags are merged by name. For books the file already knows, the restored position/shelf/hidden flag **replace** the current ones — an earlier revision of this entry claimed nothing was lost, which was wrong; the Settings screen now warns before the picker opens.
 - Unit tests: backup JSON round-trip (nulls, Arabic text, empty/missing sections), SAF tree-id → path conversion.
 
 ### M6 — Shelf management, tags & hidden books

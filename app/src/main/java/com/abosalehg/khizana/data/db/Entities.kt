@@ -4,7 +4,20 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "books")
+/**
+ * Indices back the three hot access paths:
+ *  - `observeVisible` / `observeHidden` filter on (isHidden, status) and sort by addedAt,
+ *  - `booksOnShelf` and `clearTopic` filter on topicId,
+ * all of which were full table scans before.
+ */
+@Entity(
+    tableName = "books",
+    indices = [
+        Index("topicId"),
+        Index(value = ["isHidden", "status"]),
+        Index("addedAt")
+    ]
+)
 data class BookEntity(
     /** Content fingerprint: SHA-256(fileSize + first 64 KB) — survives moves/renames. */
     @PrimaryKey val id: String,
@@ -53,6 +66,11 @@ data class BookTagCrossRef(
     val tagId: Long
 )
 
+/**
+ * Reserved for the bookmarks milestone: the table ships from v1 so adding
+ * bookmarks later needs no migration. There is deliberately no DAO and no UI
+ * yet — the README lists bookmarks under Roadmap, not Features.
+ */
 @Entity(tableName = "bookmarks", indices = [Index("bookId")])
 data class BookmarkEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

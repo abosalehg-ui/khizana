@@ -17,7 +17,15 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): KhizanaDatabase =
         Room.databaseBuilder(context, KhizanaDatabase::class.java, "khizana.db")
+            // No destructive fallback: reading positions and shelves are the
+            // whole point of the database, so every version needs a migration.
+            .addMigrations(KhizanaDatabase.MIGRATION_1_2)
             .build()
+
+    @Provides
+    @Singleton
+    fun provideTransactionRunner(db: KhizanaDatabase): TransactionRunner =
+        RoomTransactionRunner(db)
 
     @Provides
     fun provideBookDao(db: KhizanaDatabase): BookDao = db.bookDao()

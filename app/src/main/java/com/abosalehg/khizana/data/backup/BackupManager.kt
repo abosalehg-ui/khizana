@@ -2,20 +2,24 @@ package com.abosalehg.khizana.data.backup
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.abosalehg.khizana.data.db.BookDao
 import com.abosalehg.khizana.data.db.BookEntity
 import com.abosalehg.khizana.data.db.BookTagCrossRef
 import com.abosalehg.khizana.data.db.ExcludedFolderDao
 import com.abosalehg.khizana.data.db.ExcludedFolderEntity
 import com.abosalehg.khizana.data.db.TagDao
-import com.abosalehg.khizana.data.db.TagEntity
 import com.abosalehg.khizana.data.db.TopicDao
 import com.abosalehg.khizana.data.db.TopicEntity
+import com.abosalehg.khizana.data.db.TransactionRunner
+import com.abosalehg.khizana.data.db.getOrCreate
 import com.abosalehg.khizana.domain.model.BookStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,6 +28,10 @@ import javax.inject.Singleton
  * fingerprint-keyed: metadata re-attaches to matching books; books whose files
  * aren't on this device yet are inserted as MISSING and come alive on the
  * first rescan that finds their fingerprint.
+ *
+ * Restoring **overwrites** the reading position, hidden flag and shelf of every
+ * book the file knows about — the Settings screen warns about this before the
+ * file picker opens.
  */
 @Singleton
 class BackupManager @Inject constructor(
@@ -31,7 +39,8 @@ class BackupManager @Inject constructor(
     private val bookDao: BookDao,
     private val topicDao: TopicDao,
     private val tagDao: TagDao,
-    private val excludedFolderDao: ExcludedFolderDao
+    private val excludedFolderDao: ExcludedFolderDao,
+    private val transaction: TransactionRunner
 ) {
 
     suspend fun exportTo(uri: Uri): Boolean = withContext(Dispatchers.IO) {
@@ -48,27 +57,59 @@ class BackupManager @Inject constructor(
             val json = BackupSerializer.toJson(data)
             context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
                 out.write(json.toByteArray(Charsets.UTF_8))
-            } ?: return@withContext false
+            } ?: run {
+                Log.w(TAG, "Export target could not be opened for writing")
+                return@withContext false
+            }
             true
         } catch (e: Exception) {
+            Log.w(TAG, "Export failed", e)
             false
         }
     }
 
     suspend fun importFrom(uri: Uri): Boolean = withContext(Dispatchers.IO) {
         try {
-            val json = context.contentResolver.openInputStream(uri)?.use { input ->
-                input.readBytes().toString(Charsets.UTF_8)
-            } ?: return@withContext false
+            val json = context.contentResolver.openInputStream(uri)?.use { readCapped(it) }
+                ?: run {
+                    Log.w(TAG, "Backup file could not be opened for reading")
+                    return@withContext false
+                }
             val data = BackupSerializer.fromJson(json)
             applyRestore(data)
             true
+        } catch (e: BackupFormatException) {
+            Log.w(TAG, "Rejected backup file: ${e.message}")
+            false
         } catch (e: Exception) {
+            Log.w(TAG, "Restore failed", e)
             false
         }
     }
 
-    private suspend fun applyRestore(data: BackupData) {
+    /**
+     * Reads at most [BackupSerializer.MAX_BACKUP_BYTES]. A plain `readBytes()`
+     * on a picked file lets any multi-gigabyte document take the process down
+     * with an OutOfMemoryError, which `catch (Exception)` would not even catch.
+     */
+    private fun readCapped(input: InputStream): String {
+        val buffer = ByteArray(64 * 1024)
+        val collected = ByteArrayOutputStream()
+        var total = 0
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            total += read
+            if (total > BackupSerializer.MAX_BACKUP_BYTES) {
+                throw BackupFormatException("Backup file exceeds the size limit")
+            }
+            collected.write(buffer, 0, read)
+        }
+        return String(collected.toByteArray(), Charsets.UTF_8)
+    }
+
+    /** One transaction: a restore either lands whole or not at all. */
+    private suspend fun applyRestore(data: BackupData) = transaction {
         // Topics and tags are matched by name; old ids are remapped.
         val topicIdMap = HashMap<Long, Long>()
         data.topics.forEach { topic ->
@@ -78,10 +119,7 @@ class BackupManager @Inject constructor(
         }
         val tagIdMap = HashMap<Long, Long>()
         data.tags.forEach { tag ->
-            val existing = tagDao.findByName(tag.name)
-            val id = existing?.id ?: tagDao.insert(TagEntity(name = tag.name))
-                .takeIf { it > 0 } ?: tagDao.findByName(tag.name)?.id
-            id?.let { tagIdMap[tag.id] = it }
+            tagDao.getOrCreate(tag.name)?.let { tagIdMap[tag.id] = it }
         }
 
         data.books.forEach { book ->
@@ -148,4 +186,8 @@ class BackupManager @Inject constructor(
         addedAt = addedAt,
         lastReadAt = lastReadAt
     )
+
+    private companion object {
+        const val TAG = "BackupManager"
+    }
 }

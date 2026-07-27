@@ -6,6 +6,12 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
+/**
+ * The `'MISSING'` / `'OK'` literals below must stay in sync with
+ * `BookStatus`. `KhizanaDatabaseTest` asserts the two against each other, so
+ * renaming an enum constant without touching these queries fails the build
+ * instead of quietly breaking the shelves.
+ */
 @Dao
 interface BookDao {
 
@@ -18,6 +24,17 @@ interface BookDao {
     /** Everything the shelves may show: not hidden, still present on disk. */
     @Query("SELECT * FROM books WHERE isHidden = 0 AND status != 'MISSING' ORDER BY addedAt DESC")
     fun observeVisible(): Flow<List<BookEntity>>
+
+    /**
+     * The visible books of one shelf (`topicId = null` is the "New ⭐" shelf).
+     * Reordering only ever touches a single shelf, so it must not load the
+     * whole library the way [getAll] does.
+     */
+    @Query(
+        "SELECT * FROM books WHERE isHidden = 0 AND status != 'MISSING' " +
+            "AND ((:topicId IS NULL AND topicId IS NULL) OR topicId = :topicId)"
+    )
+    suspend fun booksOnShelf(topicId: Long?): List<BookEntity>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(book: BookEntity)
