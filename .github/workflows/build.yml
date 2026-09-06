@@ -84,16 +84,27 @@ jobs:
           name: khizana-debug
           path: app/build/outputs/apk/debug/*.apk
 
-  # Blocks dependencies with known high-severity advisories on every PR.
+  # Flags dependencies with known high-severity advisories on every PR.
   #
-  # This is a real gate now: the advisory continue-on-error is gone, so a
-  # vulnerable dependency fails the check instead of being noted in a log
-  # nobody opens.
+  # ONE SETTING AWAY FROM BEING A REAL GATE. The action needs the repository's
+  # "Dependency graph" to be on, and without it every run fails with
+  # "Dependency review is not supported on this repository" — a repository
+  # configuration gap, not a fault in the change under review. That failure is
+  # indistinguishable at a glance from a genuine advisory, which is worse than
+  # useless: a check that is always red teaches everyone to ignore it.
   #
-  # It needs the repository's "Dependency graph" setting to be on
-  # (Settings -> Code security). Without it the action fails with "Dependency
-  # review is not supported on this repository" — if that is what a red check
-  # here says, turn the setting on rather than reinstating continue-on-error.
+  # So it stays advisory until the setting is on:
+  #
+  #   1. Enable Dependency graph:
+  #      https://github.com/abosalehg-ui/khizana/settings/security_analysis
+  #   2. Delete the continue-on-error line below.
+  #
+  # Step 2 is the whole change — after step 1 a vulnerable dependency will
+  # fail the check instead of being noted in a log nobody opens.
+  #
+  # continue-on-error must sit on the *step*: at job level it keeps the
+  # workflow green but the check run itself still reports failure, which is
+  # exactly the red wall it is meant to avoid.
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
@@ -104,6 +115,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           fail-on-severity: high
 

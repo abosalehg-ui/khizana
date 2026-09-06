@@ -35,11 +35,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
   passed through at full size and asked the decoder for eighty gigabytes. The
   `OutOfMemoryError` catch did stop the crash, but only after a full round of
   allocation pressure, once per page. Decoded *area* is now bounded too.
-- **CI hardening.** Dependency review is a real gate again rather than
-  advisory, the keystore secret reaches the decode step through the
+- **CI hardening.** The keystore secret reaches the decode step through the
   environment instead of being interpolated into a shell command, and the
   minified release build (`assembleRelease`, R8 and resource shrinking) runs on
   every PR — it used to be exercised for the first time on a release tag.
+  Dependency review stays advisory for now: it needs the repository's
+  "Dependency graph" setting, and until that is on every run fails with
+  "not supported on this repository", which is indistinguishable at a glance
+  from a real advisory. The workflow comment names the setting and the single
+  line to delete once it is enabled.
 - The backup size cap dropped from 32 MB to 8 MB. A real library of several
   thousand books serializes to two or three; the restore holds one transaction
   for its whole duration, so the cap is about how long the database stays
