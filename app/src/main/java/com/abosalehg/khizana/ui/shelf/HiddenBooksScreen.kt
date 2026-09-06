@@ -1,6 +1,5 @@
 package com.abosalehg.khizana.ui.shelf
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -29,38 +28,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.abosalehg.khizana.R
-import com.abosalehg.khizana.data.repo.LibraryRepository
 import com.abosalehg.khizana.domain.model.Book
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
-import java.io.File
-import javax.inject.Inject
-
-@HiltViewModel
-class HiddenBooksViewModel @Inject constructor(
-    private val repository: LibraryRepository
-) : ViewModel() {
-
-    val hiddenBooks: StateFlow<List<Book>> = repository.hiddenBooks
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    fun unhide(bookId: String) {
-        viewModelScope.launch { repository.setBookHidden(bookId, false) }
-    }
-}
 
 /** Management screen for hidden books: list them, unhide on demand. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -115,24 +89,16 @@ fun HiddenBooksScreen(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val coverModifier = Modifier
-                                .width(40.dp)
-                                .height(60.dp)
-                                .clip(RoundedCornerShape(3.dp))
-                            if (book.coverPath != null) {
-                                AsyncImage(
-                                    model = File(book.coverPath),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = coverModifier
-                                )
-                            } else {
-                                Box(
-                                    modifier = coverModifier.background(
-                                        MaterialTheme.colorScheme.surfaceVariant
-                                    )
-                                )
-                            }
+                            // describe = false: the title sits right beside it,
+                            // so describing the cover too would say it twice.
+                            BookCover(
+                                book = book,
+                                describe = false,
+                                modifier = Modifier
+                                    .width(40.dp)
+                                    .height(60.dp)
+                                    .clip(RoundedCornerShape(3.dp))
+                            )
                             Spacer(Modifier.width(12.dp))
                             Text(
                                 text = book.title,

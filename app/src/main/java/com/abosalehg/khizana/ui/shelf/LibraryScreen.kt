@@ -2,6 +2,7 @@ package com.abosalehg.khizana.ui.shelf
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -70,6 +73,7 @@ fun LibraryScreen(
     val selectedTagId by viewModel.selectedTagId.collectAsStateWithLifecycle()
     val permissionGranted by viewModel.permissionGranted.collectAsStateWithLifecycle()
     val scanState by viewModel.scanState.collectAsStateWithLifecycle()
+    val coverState by viewModel.coverState.collectAsStateWithLifecycle()
     val query by viewModel.searchQuery.collectAsStateWithLifecycle()
     val shelfSort by viewModel.shelfSort.collectAsStateWithLifecycle()
 
@@ -81,7 +85,6 @@ fun LibraryScreen(
     var bookToDelete by remember { mutableStateOf<Book?>(null) }
 
     val context = LocalContext.current
-    val metrics = rememberShelfMetrics()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -216,10 +219,16 @@ fun LibraryScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        LazyColumn(
+        // The shelves size themselves from the width they are actually given,
+        // which is the window's, not the display's.
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+        ) {
+        val metrics = rememberShelfMetrics(maxWidth.value.toInt())
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             if (!permissionGranted) {
@@ -235,6 +244,7 @@ fun LibraryScreen(
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                     ScanSection(
                         scanState = scanState,
+                        coverState = coverState,
                         bookCount = state.bookCount,
                         onScanClick = viewModel::startScan,
                         onAddTopicClick = { showAddTopic = true }
@@ -283,7 +293,14 @@ fun LibraryScreen(
                             .fillMaxWidth()
                             .padding(vertical = 48.dp),
                         contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator() }
+                    ) {
+                        val loadingLabel = stringResource(R.string.loading)
+                        CircularProgressIndicator(
+                            modifier = Modifier.semantics {
+                                contentDescription = loadingLabel
+                            }
+                        )
+                    }
                 }
                 // A library with no books at all is a different message from a
                 // filter that matched nothing; the old UI showed neither.
@@ -313,6 +330,7 @@ fun LibraryScreen(
                     )
                 }
             }
+        }
         }
     }
 }

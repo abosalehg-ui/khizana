@@ -56,7 +56,9 @@
     <string name="action_save">حفظ</string>
     <string name="action_delete">حذف</string>
     <string name="action_continue">متابعة</string>
-    <string name="book_options">خيارات الكتاب</string>
+    <string name="action_open_book">افتح «%1$s»</string>
+    <!-- الاسم لكل كتاب: رفٌّ كامل من أزرار «خيارات الكتاب» لا يقول شيئاً لقارئ الشاشة. -->
+    <string name="book_options">خيارات «%1$s»</string>
     <string name="shelf_options">خيارات الرف</string>
     <string name="rename_shelf">إعادة تسمية الرف</string>
     <string name="delete_shelf">حذف الرف</string>
@@ -78,6 +80,7 @@
 
     <string name="settings">الإعدادات</string>
     <string name="action_open">فتح</string>
+    <string name="action_done">تم</string>
     <string name="deep_scan_title">البحث العميق</string>
     <string name="deep_scan_desc">يمسح كل التخزين بدل فهرس الوسائط. أبطأ، لكنه يجد ملفات فاتها الفهرس.</string>
     <string name="excluded_folders_title">المجلدات المستبعدة</string>
@@ -101,6 +104,9 @@
     <string name="continue_reading">أكمل القراءة</string>
     <string name="search_hint">ابحث في مكتبتك…</string>
     <string name="search_clear">مسح البحث</string>
+    <string name="loading">جارٍ التحميل…</string>
+    <string name="scan_failed">لم يكتمل الفحص. تأكد أن إذن الوصول لملفاتك ما زال ممنوحاً ثم أعد المحاولة.</string>
+    <string name="covers_progress">جارٍ توليد الأغلفة… %1$s / %2$s</string>
     <string name="status_protected">محمي بكلمة مرور</string>
     <string name="status_corrupt">ملف تالف</string>
 </resources>

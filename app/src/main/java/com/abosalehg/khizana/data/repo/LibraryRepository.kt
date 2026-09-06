@@ -183,6 +183,15 @@ class LibraryRepository @Inject constructor(
      * Fingerprinting is I/O bound and stays outside any transaction; the
      * resulting writes are applied in batches so a kill mid-scan leaves whole
      * batches applied rather than a half-written row.
+     *
+     * A file whose path, size and mtime all match the row already holding that
+     * path keeps its id without being re-read. That is the difference between
+     * a rescan that opens every book in the library and one that opens only
+     * what actually changed: fingerprinting reads 64 KB per file, so a library
+     * of a few thousand books used to pull a couple of hundred megabytes off
+     * storage on every scan, all of it to arrive back at the ids it already
+     * had. A deep scan skips the fast path entirely, so there is always a way
+     * to force the full computation.
      */
     suspend fun rescan(
         deep: Boolean = false,
@@ -190,16 +199,32 @@ class LibraryRepository @Inject constructor(
     ): ScanReport = withContext(Dispatchers.IO) {
         val excluded = excludedFolderDao.getAllPaths()
         val found = scanner.scan(deep, excluded)
-        val known = bookDao.getAll().associateBy { it.id }
+        val knownRows = bookDao.getAll()
+        val known = knownRows.associateBy { it.id }
+        // Only rows that carry a real mtime can serve the fast path: 0 is what
+        // every row written before schema v3 holds, and no file's mtime is 0.
+        val knownByPath = if (deep) {
+            emptyMap()
+        } else {
+            knownRows.filter { it.lastModified != 0L }.associateBy { it.path }
+        }
         val seenIds = HashSet<String>(found.size)
         val inserts = ArrayList<BookEntity>()
         val relocations = ArrayList<Relocation>()
 
         found.forEachIndexed { index, scanned ->
             val file = scanned.file
-            val id = runCatching { FileFingerprint.compute(file) }
-                .onFailure { Log.w(TAG, "Cannot fingerprint ${file.name}", it) }
-                .getOrNull()
+            val fileSize = file.length()
+            val modified = file.lastModified()
+            val unchanged = knownByPath[file.absolutePath]?.takeIf { row ->
+                row.fileSize == fileSize &&
+                    row.lastModified == modified &&
+                    row.status != BookStatus.MISSING.name
+            }
+            val id = unchanged?.id
+                ?: runCatching { FileFingerprint.compute(file) }
+                    .onFailure { Log.w(TAG, "Cannot fingerprint ${file.name}", it) }
+                    .getOrNull()
             if (id != null && seenIds.add(id)) {
                 val existing = known[id]
                 if (existing == null) {
@@ -210,14 +235,16 @@ class LibraryRepository @Inject constructor(
                         else existing.status
                     val moved = existing.path != file.absolutePath ||
                         existing.status != restoredStatus ||
-                        existing.fileSize != file.length()
+                        existing.fileSize != fileSize ||
+                        existing.lastModified != modified
                     if (moved) {
                         relocations += Relocation(
                             id = id,
                             path = file.absolutePath,
                             fileName = file.name,
-                            fileSize = file.length(),
-                            status = restoredStatus
+                            fileSize = fileSize,
+                            status = restoredStatus,
+                            lastModified = modified
                         )
                     }
                 }
@@ -239,7 +266,9 @@ class LibraryRepository @Inject constructor(
         relocations.chunked(WRITE_BATCH).forEach { batch ->
             transaction {
                 batch.forEach {
-                    bookDao.updateLocation(it.id, it.path, it.fileName, it.fileSize, it.status)
+                    bookDao.updateLocation(
+                        it.id, it.path, it.fileName, it.fileSize, it.status, it.lastModified
+                    )
                 }
             }
         }
@@ -262,7 +291,8 @@ class LibraryRepository @Inject constructor(
         format = format.name,
         title = file.nameWithoutExtension,
         fileSize = file.length(),
-        addedAt = System.currentTimeMillis()
+        addedAt = System.currentTimeMillis(),
+        lastModified = file.lastModified()
     )
 
     private data class Relocation(
@@ -270,7 +300,8 @@ class LibraryRepository @Inject constructor(
         val path: String,
         val fileName: String,
         val fileSize: Long,
-        val status: String
+        val status: String,
+        val lastModified: Long
     )
 
     private companion object {

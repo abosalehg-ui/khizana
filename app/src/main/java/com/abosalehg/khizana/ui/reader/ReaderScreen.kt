@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -50,13 +51,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -71,6 +72,7 @@ import com.abosalehg.khizana.reader.buildSpreads
 import com.abosalehg.khizana.reader.spreadIndexOfPage
 import com.abosalehg.khizana.ui.format.formatCount
 import com.abosalehg.khizana.ui.reader.ReaderUiState.Ready
+import com.abosalehg.khizana.ui.theme.LocalWoodTokens
 import kotlin.math.roundToInt
 
 /** Highest multiple of the viewport width we will re-render a page at. */
@@ -86,11 +88,12 @@ fun ReaderScreen(
     viewModel: ReaderViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val tokens = LocalWoodTokens.current
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF141210))
+            .background(tokens.readerBackground)
     ) {
         when (val s = state) {
             ReaderUiState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
@@ -125,6 +128,17 @@ private fun ReaderContent(
     }
     val onTap = { chromeVisible = !chromeVisible }
     val bookDirection = if (ready.isRtl) LayoutDirection.Rtl else LayoutDirection.Ltr
+    val tokens = LocalWoodTokens.current
+
+    // Reading a page is the one activity in this app that involves not
+    // touching the screen, so the system's idle timer would dim and lock it
+    // mid-page. Scoped to the reader and released on the way out, so it can
+    // never leak into the shelves.
+    val view = LocalView.current
+    DisposableEffect(view) {
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = false }
+    }
 
     // The pager itself flips direction so page order matches the book. `key`
     // gives each mode its own saved pager state, so a rotation can never
@@ -172,7 +186,7 @@ private fun ReaderContent(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xCC141210))
+                .background(tokens.readerChrome)
                 .statusBarsPadding()
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
@@ -182,11 +196,11 @@ private fun ReaderContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onBack) {
-                    Text(stringResource(R.string.action_back), color = Color.White)
+                    Text(stringResource(R.string.action_back), color = tokens.readerOnSurface)
                 }
                 Text(
                     text = ready.book.title,
-                    color = Color.White,
+                    color = tokens.readerOnSurface,
                     style = MaterialTheme.typography.titleSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -207,20 +221,20 @@ private fun ReaderContent(
                             if (pageBookmark != null) R.string.bookmark_edit
                             else R.string.bookmark_add
                         ),
-                        tint = Color.White
+                        tint = tokens.readerOnSurface
                     )
                 }
                 IconButton(onClick = { showBookmarkList = true }) {
                     Icon(
                         imageVector = Icons.Default.Bookmarks,
                         contentDescription = stringResource(R.string.bookmarks_title),
-                        tint = Color.White
+                        tint = tokens.readerOnSurface
                     )
                 }
                 // Always western digits, per spec.
                 Text(
                     text = "${formatCount(displayedPage + 1)} / ${formatCount(ready.pageCount)}",
-                    color = Color.White,
+                    color = tokens.readerOnSurface,
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -423,6 +437,7 @@ private fun PageImage(
     render: suspend (page: Int, targetWidth: Int) -> Bitmap?,
     modifier: Modifier = Modifier
 ) {
+    val tokens = LocalWoodTokens.current
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val baseWidth = constraints.maxWidth.coerceAtLeast(1)
         val targetWidth = (baseWidth * renderScale).toInt()
@@ -455,7 +470,7 @@ private fun PageImage(
             )
             failed -> Text(
                 text = stringResource(R.string.reader_page_failed),
-                color = Color.White,
+                color = tokens.readerOnSurface,
                 style = MaterialTheme.typography.bodyMedium
             )
             else -> CircularProgressIndicator(
@@ -467,6 +482,7 @@ private fun PageImage(
 
 @Composable
 private fun ReaderError(messageRes: Int, onBack: () -> Unit) {
+    val tokens = LocalWoodTokens.current
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -476,7 +492,7 @@ private fun ReaderError(messageRes: Int, onBack: () -> Unit) {
     ) {
         Text(
             text = stringResource(messageRes),
-            color = Color.White,
+            color = tokens.readerOnSurface,
             style = MaterialTheme.typography.titleMedium
         )
         Spacer(Modifier.padding(12.dp))

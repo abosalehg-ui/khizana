@@ -81,7 +81,7 @@ class KhizanaDatabaseTest {
             )
         )
 
-        dao.updateLocation("fp1", "/new/place/renamed.pdf", "renamed.pdf", 1000, "OK")
+        dao.updateLocation("fp1", "/new/place/renamed.pdf", "renamed.pdf", 1000, "OK", 5_000L)
 
         val book = dao.getById("fp1")!!
         assertEquals("/new/place/renamed.pdf", book.path)
@@ -110,7 +110,7 @@ class KhizanaDatabaseTest {
         dao.markMissing(listOf("fp2"))
         assertEquals(BookStatus.MISSING.name, dao.getById("fp2")!!.status)
 
-        dao.updateLocation("fp2", "/p/b.cbz", "b.cbz", 10, BookStatus.OK.name)
+        dao.updateLocation("fp2", "/p/b.cbz", "b.cbz", 10, BookStatus.OK.name, 5_000L)
 
         val book = dao.getById("fp2")!!
         assertEquals(BookStatus.OK.name, book.status)

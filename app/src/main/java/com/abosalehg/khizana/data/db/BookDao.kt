@@ -45,9 +45,16 @@ interface BookDao {
      */
     @Query(
         "UPDATE books SET path = :path, fileName = :fileName, fileSize = :fileSize, " +
-            "status = :status WHERE id = :id"
+            "status = :status, lastModified = :lastModified WHERE id = :id"
     )
-    suspend fun updateLocation(id: String, path: String, fileName: String, fileSize: Long, status: String)
+    suspend fun updateLocation(
+        id: String,
+        path: String,
+        fileName: String,
+        fileSize: Long,
+        status: String,
+        lastModified: Long
+    )
 
     /** Books whose files disappeared. Rows are never deleted — data must survive. */
     @Query("UPDATE books SET status = 'MISSING' WHERE id IN (:ids)")
@@ -98,9 +105,19 @@ interface BookDao {
     @Query("DELETE FROM book_tags WHERE bookId = :bookId")
     suspend fun deleteTagRefsForBook(bookId: String)
 
+    /**
+     * Writes back everything a backup file owns for a book that already lives
+     * on this device. `manualOrder` belongs in here: the file carries it, the
+     * insert path below applies it, and Settings promises the backup keeps
+     * "your own drag-and-drop order" — leaving it out silently flattened the
+     * hand-made arrangement of every book the restoring device already had.
+     *
+     * Location, format and cover stay untouched on purpose: those describe the
+     * file as it is here and now, not what some other device recorded.
+     */
     @Query("UPDATE books SET topicId = :topicId, locator = :locator, progress = :progress, " +
-        "isHidden = :isHidden, readingDirection = :readingDirection, lastReadAt = :lastReadAt " +
-        "WHERE id = :id")
+        "isHidden = :isHidden, readingDirection = :readingDirection, lastReadAt = :lastReadAt, " +
+        "manualOrder = :manualOrder WHERE id = :id")
     suspend fun applyRestoredMetadata(
         id: String,
         topicId: Long?,
@@ -108,6 +125,7 @@ interface BookDao {
         progress: Float,
         isHidden: Boolean,
         readingDirection: String,
-        lastReadAt: Long?
+        lastReadAt: Long?,
+        manualOrder: Int
     )
 }

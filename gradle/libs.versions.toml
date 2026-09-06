@@ -55,6 +55,8 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 # Robolectric runs the Room/DAO tests on the JVM so CI actually executes them.
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+# MigrationTestHelper: reads the committed schema JSON and replays migrations.
+androidx-room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxJunit" }
 androidx-test-core = { group = "androidx.test", name = "core-ktx", version.ref = "androidxTestCore" }
 

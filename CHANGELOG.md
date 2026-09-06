@@ -6,6 +6,128 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+
+- **A blank excluded folder no longer hides the entire library.** `""`, `"/"`
+  or any all-slashes entry trimmed to the empty prefix, and the subpath test
+  then read `startsWith("/")` — true of every absolute path on the device. One
+  such row made every scan return zero files and mark every book MISSING, with
+  no error anywhere because the scan had genuinely succeeded. Backup files are
+  where such a row comes from: `excludedFolders` was the one section read with
+  no validation at all. Both ends are fixed — the filter ignores empty
+  exclusions, and the importer drops entries that are not absolute paths.
+- **Tag references in a backup file must carry a real fingerprint**, the rule
+  books and bookmarks already followed. `book_tags` has no foreign key, so a
+  reference to an impossible book id sat in the table permanently — and
+  `pruneUnused` keeps a tag alive for exactly that kind of row, leaving tags in
+  the filter row with no book behind them. `BackupRestorer` also refuses to
+  write a reference for a book that does not exist after the restore's own
+  inserts, as a second belt.
+- **The FileProvider no longer maps the filesystem root.** Sharing needs SD
+  cards and USB volumes, which `external-path` alone does not reach, so the
+  provider maps `/storage` as well — but not `/`, which made every private file
+  the app owns, `khizana.db` included, expressible as a URI. `BookSharing`
+  enforces the same boundary in code, on the canonicalised path, so widening
+  the XML alone cannot hand out the database.
+- **A CBZ entry with an absurd aspect ratio is downsampled instead of
+  survived.** The sample size came from the width alone, so a 10 x 2,000,000
+  entry — narrower than the target, and the shape a decompression bomb takes —
+  passed through at full size and asked the decoder for eighty gigabytes. The
+  `OutOfMemoryError` catch did stop the crash, but only after a full round of
+  allocation pressure, once per page. Decoded *area* is now bounded too.
+- **CI hardening.** Dependency review is a real gate again rather than
+  advisory, the keystore secret reaches the decode step through the
+  environment instead of being interpolated into a shell command, and the
+  minified release build (`assembleRelease`, R8 and resource shrinking) runs on
+  every PR — it used to be exercised for the first time on a release tag.
+- The backup size cap dropped from 32 MB to 8 MB. A real library of several
+  thousand books serializes to two or three; the restore holds one transaction
+  for its whole duration, so the cap is about how long the database stays
+  locked, not about disk.
+
+### Added
+
+- **Opening a book is finally reachable without a touchscreen.** The cover
+  responded only to `detectTapGestures`, which never enters the semantics tree:
+  TalkBack did not announce it as a button, and a keyboard could not focus or
+  activate it. Screen-reader and keyboard users could move, share, tag, hide
+  and delete a book from its overflow menu — everything except read it. The
+  cover is now a real `clickable` with an "Open «title»" label, and the long
+  press stays on the drag source. The overflow button names its book too,
+  instead of a shelf of identical "Book options".
+- **The reader keeps the screen on.** Reading a page is the one activity in
+  this app that involves not touching the screen, so the idle timer dimmed it
+  mid-page. Scoped to the reader and released on the way out.
+- **Cover generation reports progress.** `CoverWorker` had always emitted it;
+  nothing collected it, so after a scan the shelves filled with grey
+  placeholders that quietly turned into covers minutes later.
+- **A failed scan says so.** `WorkInfo.State.FAILED` collapsed onto the same
+  blank state as "no scan has ever run", so an unreadable volume was
+  indistinguishable from an empty library. Both workers now log the failure,
+  and the library screen shows an error line under the button.
+- **Migrations are tested.** The v1 schema JSON was reconstructed by re-running
+  the annotation processor over the v1 entity shape — `exportSchema` was off
+  when v1 shipped — so its DDL and identity hash are Room's own rather than
+  hand-written. `app/schemas/` now holds v1, v2 and v3, and `MigrationTest`
+  replays v1 to v3 and v2 to v3 on the JVM, asserting that reading position,
+  title, manual order, hidden flag and bookmarks all survive.
+- **An architecture section in the README**, stating the dependency rule the
+  code already follows: `ui` to `data` to `domain`, and `domain` knows nothing
+  about Android.
+
+### Fixed
+
+- **Restoring a backup no longer flattens the hand-made shelf order.**
+  `manualOrder` was written into the backup file and applied to books the
+  device did not have, but the update path for books it already had left it
+  out — so restoring onto the same device returned every shelf and lost the
+  arrangement inside it. The restore test had re-implemented `applyRestore`
+  beside the real one, which is why a field missing from both still read as a
+  passing contract; the logic now lives in `BackupRestorer`, which needs no
+  Context, and the test drives production code.
+- **A rescan no longer re-reads every file it already knows.** Fingerprinting
+  opens each file and reads 64 KB, and it ran for every file on every scan — a
+  few thousand books meant a couple of hundred megabytes off storage to arrive
+  back at the ids we already had. A file whose path, size and mtime are all
+  unchanged now keeps its id untouched. Identity is still the fingerprint:
+  anything that moved, changed size or changed mtime takes the full path, and a
+  deep scan skips the fast path entirely. This adds `books.lastModified` and
+  schema v3; rows from before it carry 0, which no real mtime matches, so they
+  are fingerprinted once more and then stamped.
+- **The gold accents in the light theme are visible again.** The drop-target
+  outline sat at 1.43:1 on parchment and the reading-progress bar at 2.05:1,
+  against the 3:1 WCAG asks of a functional non-text element — so the only
+  feedback a drag gives was invisible, and so was how far into a book you were.
+  Both now use a darker gold (4.2:1 on the background, 3.7:1 on the dimmest
+  surface) and the progress bar has a visible groove behind it. Dark mode
+  already cleared the bar and is unchanged.
+- **Arabic titles sort under alef.** Comparing raw code points put every
+  hamza form ahead of plain alef, so «أحمد» and «إبراهيم» collected in a clump
+  before «ابن خلدون» instead of interleaving with it. The shelf now folds the
+  same letter variants the search already folded.
+- **Shelves size themselves from the window, not the display.**
+  `LocalConfiguration.screenWidthDp` reports the whole screen while the app
+  owns a fraction of it, so 112 dp covers overflowed a split-screen row.
+  Settings caps its column at 640 dp instead of stretching lines across a
+  tablet.
+- **Releases can be installed as upgrades.** `versionCode` was hardcoded to 1,
+  so every signed release built from every `v*` tag claimed to be the same
+  version. It is derived from the tag now.
+- **"Move to shelf" closes with «تم».** Its only button read "Cancel" while
+  picking a shelf had already moved the book.
+- Status ribbons carry a lock or warning glyph beside the text, so the marker
+  does not depend on colour alone. The fallback cover carries the book's title
+  for a screen reader instead of a lone letter, and the loading spinner is
+  labelled.
+- The unused Amiri italic face was removed: no text style asked for it.
+- Shared code instead of copies: the fingerprint format rule lives on
+  `FileFingerprint`, the drop-target outline is one `Modifier.dropHighlight`,
+  and the cover-or-first-letter fallback is one `BookCover` — which is also the
+  single place the designed fallback cover on the roadmap will replace.
+  `HiddenBooksViewModel` and `ScannerModule` moved into files of their own, and
+  the shelf plank is drawn through `drawWithCache` rather than recomputing its
+  grain on every recomposition.
+
 ### Added
 
 - **Bookmarks with notes.** The reader's top bar carries a bookmark toggle for

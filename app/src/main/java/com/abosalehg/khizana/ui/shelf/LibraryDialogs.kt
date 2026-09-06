@@ -93,6 +93,11 @@ internal fun RenameTopicDialog(
  * Keyboard- and screen-reader-reachable equivalent of dragging a book onto
  * another shelf. Drag and drop stays as the fast path, but it is no longer the
  * only way to organise a library.
+ *
+ * Picking a shelf moves the book there and then: there is nothing to confirm,
+ * and the move is reversible by picking another. The button therefore reads
+ * "Done" — it used to read "Cancel", which said nothing had happened when
+ * something already had.
  */
 @Composable
 internal fun MoveToShelfDialog(
@@ -139,7 +144,7 @@ internal fun MoveToShelfDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) }
         }
     )
 }

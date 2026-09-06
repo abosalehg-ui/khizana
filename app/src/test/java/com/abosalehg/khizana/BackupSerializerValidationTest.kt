@@ -99,4 +99,41 @@ class BackupSerializerValidationTest {
         )
         assertEquals(0f, data.books.single().progress, 0f)
     }
+
+    @Test
+    fun aTagReferenceWithoutAFingerprintIsRejected() {
+        // book_tags has no foreign key, so such a row would sit there for
+        // good — and keep a tag alive with no book behind it.
+        val json = """
+            {"version":2,"bookTags":[{"bookId":"../../etc/passwd","tagId":1}]}
+        """.trimIndent()
+        assertThrows(BackupFormatException::class.java) { BackupSerializer.fromJson(json) }
+    }
+
+    @Test
+    fun aTagReferenceWithARealFingerprintIsKept() {
+        val id = "c".repeat(64)
+        val json = """
+            {"version":2,"bookTags":[{"bookId":"$id","tagId":4}]}
+        """.trimIndent()
+        val data = BackupSerializer.fromJson(json)
+        assertEquals(1, data.bookTags.size)
+        assertEquals(id, data.bookTags.single().bookId)
+    }
+
+    @Test
+    fun aBlankExcludedFolderIsDroppedRatherThanStored() {
+        // Storing "" would make every absolute path excluded on the next scan.
+        val json = """
+            {"version":2,"excludedFolders":["","/","  ","/storage/emulated/0/Private"]}
+        """.trimIndent()
+        val data = BackupSerializer.fromJson(json)
+        assertEquals(listOf("/storage/emulated/0/Private"), data.excludedFolders)
+    }
+
+    @Test
+    fun aRelativeExcludedFolderIsDropped() {
+        val json = """{"version":2,"excludedFolders":["Books","./Books"]}"""
+        assertEquals(emptyList<String>(), BackupSerializer.fromJson(json).excludedFolders)
+    }
 }

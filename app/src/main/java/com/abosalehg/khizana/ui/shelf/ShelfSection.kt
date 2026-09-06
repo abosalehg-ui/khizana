@@ -1,7 +1,5 @@
 package com.abosalehg.khizana.ui.shelf
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
@@ -29,8 +26,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.abosalehg.khizana.R
@@ -141,11 +140,7 @@ internal fun ShelfSection(
                             )
                         } else Modifier
                     )
-                    .then(
-                        if (hovered) {
-                            Modifier.border(2.dp, tokens.goldSoft, RoundedCornerShape(8.dp))
-                        } else Modifier
-                    ),
+                    .dropHighlight(hovered),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -175,11 +170,7 @@ internal fun ShelfSection(
                             )
                         } else Modifier
                     )
-                    .then(
-                        if (rowHovered) {
-                            Modifier.border(2.dp, tokens.goldSoft, RoundedCornerShape(8.dp))
-                        } else Modifier
-                    )
+                    .dropHighlight(rowHovered)
             ) {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 20.dp),
@@ -212,35 +203,65 @@ internal fun ShelfSection(
     }
 }
 
-/** A single wooden plank — the shelf surface books stand on. */
+/**
+ * A single wooden plank — the shelf surface books stand on.
+ *
+ * Drawn through `drawWithCache`, not `Canvas`: the grain is a fixed number of
+ * lines across the width, and nothing about it changes between frames, so
+ * recomputing the loop on every recomposition of a scrolling list was work
+ * spent arriving at the identical picture. The cache block re-runs only when
+ * the size or the tokens change.
+ */
 @Composable
 private fun ShelfPlank(modifier: Modifier = Modifier) {
     val tokens = LocalWoodTokens.current
-    Canvas(modifier) {
-        drawRect(
-            brush = Brush.verticalGradient(
+    Spacer(
+        modifier.drawWithCache {
+            val gradient = Brush.verticalGradient(
                 colors = listOf(tokens.plankLight, tokens.plankBase, tokens.plankDeep)
             )
-        )
-        val step = 34.dp.toPx()
-        var x = step / 2f
-        var index = 0
-        while (x < size.width) {
-            val color = if (index % 2 == 0) tokens.plankGrainDark else tokens.plankGrainLight
-            drawLine(
-                color = color,
-                start = Offset(x, 0f),
-                end = Offset(x, size.height),
-                strokeWidth = if (index % 2 == 0) 2f else 1f
-            )
-            x += step
-            index++
+            val step = 34.dp.toPx()
+            // Held in a local: inside buildList, `size` is the list's own count.
+            val plankWidth = size.width
+            val grainLines = buildList {
+                var x = step / 2f
+                var index = 0
+                while (x < plankWidth) {
+                    add(
+                        GrainLine(
+                            x = x,
+                            color = if (index % 2 == 0) {
+                                tokens.plankGrainDark
+                            } else {
+                                tokens.plankGrainLight
+                            },
+                            strokeWidth = if (index % 2 == 0) 2f else 1f
+                        )
+                    )
+                    x += step
+                    index++
+                }
+            }
+            onDrawBehind {
+                drawRect(brush = gradient)
+                grainLines.forEach { line ->
+                    drawLine(
+                        color = line.color,
+                        start = Offset(line.x, 0f),
+                        end = Offset(line.x, size.height),
+                        strokeWidth = line.strokeWidth
+                    )
+                }
+                drawLine(
+                    color = tokens.goldSoft.copy(alpha = 0.6f),
+                    start = Offset(0f, 1f),
+                    end = Offset(size.width, 1f),
+                    strokeWidth = 2f
+                )
+            }
         }
-        drawLine(
-            color = tokens.goldSoft.copy(alpha = 0.6f),
-            start = Offset(0f, 1f),
-            end = Offset(size.width, 1f),
-            strokeWidth = 2f
-        )
-    }
+    )
 }
+
+/** One vertical grain stroke, precomputed once per plank size. */
+private data class GrainLine(val x: Float, val color: Color, val strokeWidth: Float)

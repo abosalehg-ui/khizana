@@ -14,6 +14,20 @@ object FileFingerprint {
 
     const val HEAD_SIZE_BYTES: Int = 64 * 1024
 
+    /** What [compute] produces: 64 lowercase hex characters, nothing else. */
+    private val ID_PATTERN = Regex("^[0-9a-f]{64}$")
+
+    /**
+     * True when [id] is a bare fingerprint this object could have produced.
+     *
+     * Ids do not only come from [compute]: they also arrive from backup files,
+     * which are user-supplied, and they end up as file names in the cover
+     * store. The rule lives here — at the source of the format — because it is
+     * a security boundary, and a boundary written down twice is a boundary
+     * that will one day be updated once.
+     */
+    fun isValidId(id: String?): Boolean = id != null && ID_PATTERN.matches(id)
+
     fun compute(file: File): String {
         val head = ByteArray(HEAD_SIZE_BYTES)
         val read = file.inputStream().use { input ->

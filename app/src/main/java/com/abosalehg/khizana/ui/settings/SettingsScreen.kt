@@ -6,6 +6,7 @@ import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -140,12 +142,17 @@ fun SettingsScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
+        // A single column stretched across a 1200 dp tablet gives lines nobody
+        // can track back to the start of, so the content is capped and centred
+        // while the scroll container still fills the window.
+        Box(Modifier.fillMaxSize().padding(innerPadding)) {
         Column(
             modifier = Modifier
+                .align(Alignment.TopCenter)
+                .widthIn(max = 640.dp)
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 20.dp)
                 .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
         ) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
@@ -297,6 +304,7 @@ fun SettingsScreen(
                 }
             }
             Spacer(Modifier.height(24.dp))
+        }
         }
     }
 }

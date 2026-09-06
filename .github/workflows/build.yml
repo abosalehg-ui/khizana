@@ -68,6 +68,13 @@ jobs:
           name: unit-test-report
           path: app/build/reports/tests/testDebugUnitTest
 
+      # R8 only runs for the release build, so a rule that strips something the
+      # app needs stayed invisible until a tag was pushed — the one build
+      # nobody wants to debug. Unsigned is enough: it is the shrinking that is
+      # under test, not the signature.
+      - name: Build release APK (unsigned, exercises R8)
+        run: ./gradlew assembleRelease --stacktrace
+
       - name: Lint
         run: ./gradlew lintDebug --stacktrace
 
@@ -77,20 +84,16 @@ jobs:
           name: khizana-debug
           path: app/build/outputs/apk/debug/*.apk
 
-  # Flags dependencies with known high-severity advisories on every PR.
+  # Blocks dependencies with known high-severity advisories on every PR.
   #
-  # Requires the repository's "Dependency graph" setting to be on
-  # (Settings -> Code security). Until it is, the action errors out with
-  # "Dependency review is not supported on this repository" — a repository
-  # configuration gap, not a fault in the change under review — so the step
-  # is marked continue-on-error and the result is advisory.
+  # This is a real gate now: the advisory continue-on-error is gone, so a
+  # vulnerable dependency fails the check instead of being noted in a log
+  # nobody opens.
   #
-  # continue-on-error must sit on the *step*: at job level it keeps the
-  # workflow green but the check run itself still reports failure, which is
-  # exactly the red wall it is meant to avoid.
-  #
-  # Once Dependency graph is enabled, drop the continue-on-error line and this
-  # becomes a real gate.
+  # It needs the repository's "Dependency graph" setting to be on
+  # (Settings -> Code security). Without it the action fails with "Dependency
+  # review is not supported on this repository" — if that is what a red check
+  # here says, turn the setting on rather than reinstating continue-on-error.
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
@@ -101,7 +104,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
-        continue-on-error: true
         with:
           fail-on-severity: high
 
@@ -127,8 +129,14 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # The secret travels as an environment variable, not interpolated into
+      # the shell command: nothing about it can end up in a command line, a
+      # process listing, or a trace. printf rather than echo, so a value
+      # starting with a dash is data instead of a flag.
       - name: Decode keystore
-        run: echo "${{ secrets.KHIZANA_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/khizana.jks"
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KHIZANA_KEYSTORE_BASE64 }}
+        run: printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/khizana.jks"
 
       - name: Build signed release APK
         env:

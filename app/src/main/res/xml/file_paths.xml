@@ -1,13 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Books live wherever the reader keeps them: internal storage, an SD card,
-    a USB volume. Anything narrower than root-path (external-path covers only
-    /storage/emulated/0) would leave the "share" menu item failing on exactly
-    the libraries that need All Files Access in the first place.
+    a USB volume. `external-path` alone covers only /storage/emulated/0, which
+    would leave the "share" menu item failing on exactly the libraries that
+    need All Files Access in the first place — so /storage is here too, and
+    that is where every removable volume is mounted.
 
-    Breadth here is not access: the provider is not exported, and a URI only
-    exists for a file the user just chose to share, for the app they picked.
+    What is deliberately NOT here is the filesystem root. Breadth is not
+    access — the provider is not exported, and a URI only exists for a file the
+    user just chose to share — but a root-path would make every private file
+    this app owns, khizana.db included, expressible as a URI from this
+    provider. Scoping to storage volumes keeps a future mistake in whatever
+    calls getUriForFile from being able to hand out the database.
+    BookSharing enforces the same boundary in code.
 -->
 <paths>
-    <root-path name="device" path="/" />
+    <external-path name="primary" path="." />
+    <root-path name="volumes" path="/storage/" />
 </paths>

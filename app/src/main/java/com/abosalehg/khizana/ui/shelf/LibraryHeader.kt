@@ -76,6 +76,7 @@ internal fun PermissionCard(onGranted: () -> Unit) {
 @Composable
 internal fun ScanSection(
     scanState: ScanUiState,
+    coverState: CoverUiState,
     bookCount: Int,
     onScanClick: () -> Unit,
     onAddTopicClick: () -> Unit
@@ -122,6 +123,16 @@ internal fun ScanSection(
         } else {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
+    } else if (scanState.failed) {
+        // A failed scan used to fall back to the same blank state as "never
+        // scanned", so the reader was left staring at an empty library with no
+        // reason given. It says what happened, and what usually causes it.
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.scan_failed),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
     } else if (scanState.lastScanned != null) {
         Spacer(Modifier.height(4.dp))
         Text(
@@ -131,6 +142,20 @@ internal fun ScanSection(
                 formatCount(scanState.lastAdded),
                 formatCount(scanState.lastRelocated),
                 formatCount(scanState.lastMissing)
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    // Covers are generated after the scan hands over, so this is its own line
+    // rather than a branch of the scan's: the two overlap in practice.
+    if (coverState.running && coverState.total > 0) {
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(
+                R.string.covers_progress,
+                formatCount(coverState.processed),
+                formatCount(coverState.total)
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant

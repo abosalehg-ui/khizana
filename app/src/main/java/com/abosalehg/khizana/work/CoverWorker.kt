@@ -1,6 +1,7 @@
 package com.abosalehg.khizana.work
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
@@ -25,11 +26,13 @@ class CoverWorker @AssistedInject constructor(
             Result.success()
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
+            Log.w(TAG, "Cover generation failed", e)
             Result.failure()
         }
     }
 
     companion object {
+        private const val TAG = "CoverWorker"
         const val UNIQUE_NAME = "cover_generation"
         const val KEY_PROCESSED = "processed"
         const val KEY_TOTAL = "total"

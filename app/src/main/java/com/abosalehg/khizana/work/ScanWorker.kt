@@ -1,6 +1,7 @@
 package com.abosalehg.khizana.work
 
 import android.content.Context
+import android.util.Log
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
@@ -45,13 +46,19 @@ class ScanWorker @AssistedInject constructor(
             )
         } catch (e: Exception) {
             if (e is kotlinx.coroutines.CancellationException) throw e
-            Result.failure()
+            // A silent failure was indistinguishable from "no scan has run
+            // yet": the progress bar vanished and the shelves stayed empty,
+            // so an unreadable volume looked exactly like an empty library.
+            Log.w(TAG, "Library scan failed", e)
+            Result.failure(workDataOf(KEY_ERROR to e.javaClass.simpleName))
         }
     }
 
     companion object {
+        private const val TAG = "ScanWorker"
         const val UNIQUE_NAME = "library_scan"
         const val KEY_DEEP = "deep"
+        const val KEY_ERROR = "error"
         const val KEY_PROCESSED = "processed"
         const val KEY_TOTAL = "total"
         const val KEY_SCANNED = "scanned"
