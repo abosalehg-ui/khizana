@@ -54,6 +54,16 @@ Known gaps, stated rather than implied:
   contract. The logic now lives in `BackupRestorer` — no Context, so the test
   drives production code — and the duplicate is gone.
 
+## CI
+
+`.github/workflows/build.yml` runs on every push and pull request: debug APK,
+the unit suite (with a summary step that fails when no tests executed at all),
+the minified release APK so R8 is exercised before a release tag rather than
+during one, and lint. `dependency-submission.yml` publishes the resolved Gradle
+dependency graph for `main`, which is the baseline `dependency-review` compares
+a pull request against — GitHub does not parse Gradle build files, so without
+it the review has nothing to look at.
+
 ## Manual checklist
 
 ### M10 — review fixes

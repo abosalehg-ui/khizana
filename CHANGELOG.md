@@ -39,12 +39,15 @@ project adheres to [Semantic Versioning](https://semver.org/).
   environment instead of being interpolated into a shell command, and the
   minified release build (`assembleRelease`, R8 and resource shrinking) runs on
   every PR — it used to be exercised for the first time on a release tag.
-  Dependency review stays advisory, and the workflow now records exactly why:
-  the dependency graph is governed by an account-level setting rather than the
-  repository page the action's error points at, and even with it on, GitHub
-  does not parse Gradle build files, so the review would compare two empty
-  graphs. Making it a gate needs the account setting plus
-  `gradle/actions/dependency-submission`.
+  A new `dependency-submission` workflow publishes the resolved Gradle
+  dependency graph for `main` on every push, which is what gives dependency
+  review anything to compare a pull request against: GitHub reads Maven's
+  `pom.xml` statically but reaches Gradle only through the submission API, and
+  this project's version catalog would defeat a static parser anyway. Review
+  itself stays advisory until the dependency graph is switched on for the
+  account that owns the repository — not the repository page the action's error
+  message links to — and the workflow comment records both facts and the
+  condition for removing the line.
 - The backup size cap dropped from 32 MB to 8 MB. A real library of several
   thousand books serializes to two or three; the restore holds one transaction
   for its whole duration, so the cap is about how long the database stays
