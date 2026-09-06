@@ -39,6 +39,20 @@
 
 يطلب التطبيق إذن `MANAGE_EXTERNAL_STORAGE` لسبب واحد: فحص وحدة التخزين للعثور على ملفات كتبك أينما كانت، وفتحها مباشرة، وحذفها نهائياً إن طلبتَ ذلك. مجلدا `Android/data` و `Android/obb` ممنوعان بقيد من نظام أندرويد نفسه (11+) ولا يمكن الوصول إليهما.
 
+## البنية
+
+ثلاث طبقات، والاعتماد يتجه في اتجاه واحد فقط: `ui` ← `data` ← `domain`.
+
+| المجلد | المسؤولية | القاعدة |
+|---|---|---|
+| `domain/model` | النماذج والقواعد الخالصة (الكتاب، الإشارة، ترتيب الرف) | **لا يعرف أندرويد إطلاقاً** — لا `Context`، لا Room، لا Compose |
+| `data` | Room والماسح والأغلفة والنسخ الاحتياطي والإعدادات | يعتمد على `domain` وحده؛ يكشف واجهات (`BookEngine`, `LibraryScanner`, `TransactionRunner`) لا تفاصيل |
+| `ui` | شاشات Compose و ViewModels | يعتمد على `data` عبر المستودعات؛ لا SQL ولا وصول للملفات هنا |
+| `reader` | محرّكات العرض (PDF و CBZ) خلف `BookEngine` | إضافة صيغة = ملف واحد جديد |
+| `work` | عمّال WorkManager للفحص وتوليد الأغلفة | لا منطق خاص بهم — يستدعون المستودعات فقط |
+
+القاعدة العملية: أي منطق تريد اختباره على JVM يوضع في `domain` أو خلف واجهة في `data`؛ ولهذا يعمل كامل طقم الاختبارات بلا محاكي.
+
 ## البناء
 
 ```
@@ -48,7 +62,7 @@
 
 يتطلب JDK 17 و Android SDK 35. الإصدارات الموقّعة تُبنى آلياً عبر GitHub Actions عند دفع وسم `v*`.
 
-> عند تغيير مخطط قاعدة البيانات: اكتب ترحيلاً (`Migration`) وارفع ملفات المخطط المولَّدة في `app/schemas/` مع التغيير — لا يوجد `fallbackToDestructiveMigration`، وتقدّم القراءة يجب ألا يضيع.
+> عند تغيير مخطط قاعدة البيانات: اكتب ترحيلاً (`Migration`)، وارفع ملف المخطط المولَّد في `app/schemas/`، وأضف حالة إلى `MigrationTest` — لا يوجد `fallbackToDestructiveMigration`، وتقدّم القراءة يجب ألا يضيع. تاريخ المخطط كامل من v1، والترحيلات مُختبَرة فعلياً على JVM.
 
 ## الرخصة
 
@@ -95,6 +109,20 @@ Listed explicitly because they are **not** in the app today:
 
 The app requests `MANAGE_EXTERNAL_STORAGE` for one purpose: scanning storage to find your book files wherever they are, opening them directly, and permanently deleting them when you ask it to. `Android/data` and `Android/obb` are blocked by Android itself (11+) and cannot be accessed.
 
+## Architecture
+
+Three layers, and dependencies point one way only: `ui` -> `data` -> `domain`.
+
+| Directory | Responsibility | Rule |
+|---|---|---|
+| `domain/model` | Pure models and rules (book, bookmark, shelf sort) | **Knows nothing about Android** — no `Context`, no Room, no Compose |
+| `data` | Room, the scanner, covers, backup, settings | Depends on `domain` only; exposes interfaces (`BookEngine`, `LibraryScanner`, `TransactionRunner`), not implementations |
+| `ui` | Compose screens and ViewModels | Reaches `data` through repositories; no SQL and no file access here |
+| `reader` | Rendering engines (PDF, CBZ) behind `BookEngine` | A new format is one new file |
+| `work` | WorkManager workers for scanning and covers | Hold no logic of their own — they call repositories |
+
+The working rule: anything you want to test on the JVM lives in `domain` or behind an interface in `data`. That is why the whole suite runs without an emulator.
+
 ## Building
 
 ```
@@ -104,7 +132,7 @@ The app requests `MANAGE_EXTERNAL_STORAGE` for one purpose: scanning storage to 
 
 Requires JDK 17 and Android SDK 35. Signed releases are built automatically by GitHub Actions when a `v*` tag is pushed.
 
-> When changing the database schema: write a `Migration` and commit the generated files under `app/schemas/`. There is no `fallbackToDestructiveMigration` — reading progress must never be dropped.
+> When changing the database schema: write a `Migration`, commit the generated file under `app/schemas/`, and add a case to `MigrationTest`. There is no `fallbackToDestructiveMigration` — reading progress must never be dropped. The schema history is complete from v1 and every migration is exercised on the JVM.
 
 ## License
 

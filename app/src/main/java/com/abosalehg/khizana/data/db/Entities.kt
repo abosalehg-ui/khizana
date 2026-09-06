@@ -40,7 +40,16 @@ data class BookEntity(
     val manualOrder: Int = 0,
     val fileSize: Long = 0,
     val addedAt: Long = 0,
-    val lastReadAt: Long? = null
+    val lastReadAt: Long? = null,
+    /**
+     * The file's mtime as of the scan that last touched this row, or 0 when
+     * unknown (every row that predates schema v3).
+     *
+     * Purely a rescan optimisation: identity is still the fingerprint. It lets
+     * a rescan skip re-reading 64 KB of a file whose path, size and mtime are
+     * all unchanged — which, for a library that has not moved, is every file.
+     */
+    val lastModified: Long = 0
 )
 
 @Entity(tableName = "topics")

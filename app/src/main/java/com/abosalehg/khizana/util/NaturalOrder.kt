@@ -3,7 +3,9 @@ package com.abosalehg.khizana.util
 /**
  * Natural string ordering: digit runs compare as numbers, so "المجلد 2"
  * sorts before "المجلد 10". Understands Western (0-9), Arabic-Indic (٠-٩)
- * and Eastern Arabic-Indic (۰-۹) digits; text compares case-insensitively.
+ * and Eastern Arabic-Indic (۰-۹) digits; text compares case-insensitively,
+ * and Arabic letter variants (أ إ آ ٱ / ة / ى) fold the same way the search
+ * folds them, so "أحمد" files under alef rather than ahead of it.
  * No number parsing into ints — digit runs compare by stripped length then
  * digit-by-digit, so arbitrarily long numbers can't overflow.
  */
@@ -23,7 +25,7 @@ object NaturalOrderComparator : Comparator<String> {
                 i = endA
                 j = endB
             } else {
-                val cmp = a[i].lowercaseChar().compareTo(b[j].lowercaseChar())
+                val cmp = foldChar(a[i]).compareTo(foldChar(b[j]))
                 if (cmp != 0) return cmp
                 i++
                 j++
@@ -56,6 +58,23 @@ object NaturalOrderComparator : Comparator<String> {
         }
         // Same numeric value: fewer leading zeros first ("1" before "01").
         return (endA - startA).compareTo(endB - startB)
+    }
+
+    /**
+     * Folds a character to the form it should sort as.
+     *
+     * Comparing raw code points puts every hamza form (\u0621..\u0626) ahead of plain
+     * alef (\u0627), so «أحمد» and «إبراهيم» collected in a clump before «ابن»
+     * instead of interleaving with it — a reader looking for a title under
+     * alef would not find it there. This applies the same unification
+     * `normalizeForSearch` already applies, so the shelf and the search agree
+     * on what counts as the same letter.
+     */
+    private fun foldChar(c: Char): Char = when (c) {
+        'أ', 'إ', 'آ', 'ٱ' -> 'ا'   // hamza-carrying alefs fold onto plain alef
+        'ة' -> 'ه'                  // ta marbuta folds onto ha
+        'ى' -> 'ي'                  // alef maqsura folds onto ya
+        else -> c.lowercaseChar()
     }
 
     private fun digitValue(c: Char): Int? = when (c) {

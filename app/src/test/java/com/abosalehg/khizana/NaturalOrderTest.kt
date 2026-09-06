@@ -61,4 +61,31 @@ class NaturalOrderTest {
             .sortedWith(NaturalOrderComparator)
         assertEquals(listOf("المجلد 1", "المجلد 3", "المجلد 10"), sorted)
     }
+
+    @Test
+    fun `hamza forms file under alef instead of ahead of it`() {
+        // Raw code points put أ (U+0623) and إ (U+0625) before ا (U+0627), so
+        // "أحمد" and "إبراهيم" collected in a clump ahead of every plain-alef
+        // title instead of interleaving with them.
+        val titles = listOf("ابن خلدون", "أحمد", "إبراهيم", "بخاري")
+        assertEquals(
+            listOf("إبراهيم", "ابن خلدون", "أحمد", "بخاري"),
+            titles.sortedWith(NaturalOrderComparator)
+        )
+    }
+
+    @Test
+    fun `ta marbuta and alef maqsura sort as their plain forms`() {
+        assertEquals(0, NaturalOrderComparator.compare("مكتبة", "مكتبه"))
+        assertEquals(0, NaturalOrderComparator.compare("الطبرى", "الطبري"))
+    }
+
+    @Test
+    fun `folding does not disturb ordinary arabic ordering`() {
+        val titles = listOf("تاريخ", "بلاغة", "أدب", "حديث")
+        assertEquals(
+            listOf("أدب", "بلاغة", "تاريخ", "حديث"),
+            titles.sortedWith(NaturalOrderComparator)
+        )
+    }
 }

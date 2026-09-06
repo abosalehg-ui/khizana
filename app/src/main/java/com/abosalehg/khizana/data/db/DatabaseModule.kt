@@ -19,7 +19,10 @@ object DatabaseModule {
         Room.databaseBuilder(context, KhizanaDatabase::class.java, "khizana.db")
             // No destructive fallback: reading positions and shelves are the
             // whole point of the database, so every version needs a migration.
-            .addMigrations(KhizanaDatabase.MIGRATION_1_2)
+            .addMigrations(
+                KhizanaDatabase.MIGRATION_1_2,
+                KhizanaDatabase.MIGRATION_2_3
+            )
             .build()
 
     @Provides

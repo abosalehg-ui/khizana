@@ -5,13 +5,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import com.abosalehg.khizana.domain.model.BookFormat
-import dagger.Module
-import dagger.Provides
-import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
-import dagger.hilt.components.SingletonComponent
 import java.io.File
-import javax.inject.Singleton
 
 /** A candidate book file found on disk. */
 data class ScannedFile(
@@ -100,14 +94,4 @@ class MediaStoreLibraryScanner(
     private companion object {
         const val TAG = "LibraryScanner"
     }
-}
-
-@Module
-@InstallIn(SingletonComponent::class)
-object ScannerModule {
-
-    @Provides
-    @Singleton
-    fun provideLibraryScanner(@ApplicationContext context: Context): LibraryScanner =
-        MediaStoreLibraryScanner(context)
 }

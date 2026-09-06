@@ -6,18 +6,21 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import com.abosalehg.khizana.R
 
-/** Amiri — headings, shelf titles, generated cover titles. Bundled locally. */
+/**
+ * Amiri — headings, shelf titles, generated cover titles. Bundled locally.
+ *
+ * Regular and bold only: no style below asks for italic, and an italic face
+ * nothing renders is bytes in every APK for a shape no reader ever sees.
+ */
 val AmiriFamily = FontFamily(
     Font(R.font.amiri_regular, FontWeight.Normal),
-    Font(R.font.amiri_bold, FontWeight.Bold),
-    Font(R.font.amiri_italic, FontWeight.Normal, FontStyle.Italic)
+    Font(R.font.amiri_bold, FontWeight.Bold)
 )
 
 /** Cairo — body and UI text. Variable font, instantiated per weight. */

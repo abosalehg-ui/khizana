@@ -5,17 +5,10 @@ import android.net.Uri
 import android.util.Log
 import com.abosalehg.khizana.data.db.BookDao
 import com.abosalehg.khizana.data.db.BookEntity
-import com.abosalehg.khizana.data.db.BookTagCrossRef
 import com.abosalehg.khizana.data.db.BookmarkDao
-import com.abosalehg.khizana.data.db.BookmarkEntity
 import com.abosalehg.khizana.data.db.ExcludedFolderDao
-import com.abosalehg.khizana.data.db.ExcludedFolderEntity
 import com.abosalehg.khizana.data.db.TagDao
 import com.abosalehg.khizana.data.db.TopicDao
-import com.abosalehg.khizana.data.db.TopicEntity
-import com.abosalehg.khizana.data.db.TransactionRunner
-import com.abosalehg.khizana.data.db.getOrCreate
-import com.abosalehg.khizana.domain.model.BookStatus
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -43,7 +36,7 @@ class BackupManager @Inject constructor(
     private val tagDao: TagDao,
     private val excludedFolderDao: ExcludedFolderDao,
     private val bookmarkDao: BookmarkDao,
-    private val transaction: TransactionRunner
+    private val restorer: BackupRestorer
 ) {
 
     suspend fun exportTo(uri: Uri): Boolean = withContext(Dispatchers.IO) {
@@ -81,7 +74,7 @@ class BackupManager @Inject constructor(
                     return@withContext false
                 }
             val data = BackupSerializer.fromJson(json)
-            applyRestore(data)
+            restorer.apply(data)
             true
         } catch (e: BackupFormatException) {
             Log.w(TAG, "Rejected backup file: ${e.message}")
@@ -111,87 +104,6 @@ class BackupManager @Inject constructor(
             collected.write(buffer, 0, read)
         }
         return String(collected.toByteArray(), Charsets.UTF_8)
-    }
-
-    /** One transaction: a restore either lands whole or not at all. */
-    private suspend fun applyRestore(data: BackupData) = transaction {
-        // Topics and tags are matched by name; old ids are remapped.
-        val topicIdMap = HashMap<Long, Long>()
-        data.topics.forEach { topic ->
-            val existing = topicDao.findByName(topic.name)
-            topicIdMap[topic.id] = existing?.id
-                ?: topicDao.insert(TopicEntity(name = topic.name, order = topic.order))
-        }
-        val tagIdMap = HashMap<Long, Long>()
-        data.tags.forEach { tag ->
-            tagDao.getOrCreate(tag.name)?.let { tagIdMap[tag.id] = it }
-        }
-
-        data.books.forEach { book ->
-            val mappedTopic = book.topicId?.let { topicIdMap[it] }
-            val existing = bookDao.getById(book.id)
-            if (existing != null) {
-                bookDao.applyRestoredMetadata(
-                    id = book.id,
-                    topicId = mappedTopic,
-                    locator = book.locator,
-                    progress = book.progress,
-                    isHidden = book.isHidden,
-                    readingDirection = book.readingDirection,
-                    lastReadAt = book.lastReadAt
-                )
-            } else {
-                // Not on this device (yet): keep as MISSING until a scan
-                // finds the same fingerprint and fills in the real path.
-                bookDao.insert(
-                    BookEntity(
-                        id = book.id,
-                        path = "",
-                        fileName = book.fileName,
-                        format = book.format,
-                        title = book.title,
-                        author = book.author,
-                        topicId = mappedTopic,
-                        pageCount = book.pageCount,
-                        locator = book.locator,
-                        progress = book.progress,
-                        readingDirection = book.readingDirection,
-                        status = BookStatus.MISSING.name,
-                        isHidden = book.isHidden,
-                        manualOrder = book.manualOrder,
-                        fileSize = book.fileSize,
-                        addedAt = book.addedAt,
-                        lastReadAt = book.lastReadAt
-                    )
-                )
-            }
-        }
-
-        data.bookTags.forEach { ref ->
-            tagIdMap[ref.tagId]?.let { tagDao.addRef(BookTagCrossRef(ref.bookId, it)) }
-        }
-
-        // One bookmark per page, here as everywhere: restoring twice, or over a
-        // device that already bookmarked the page, updates the note instead of
-        // stacking a duplicate.
-        data.bookmarks.forEach { bookmark ->
-            val existing = bookmarkDao.findAt(bookmark.bookId, bookmark.page)
-            if (existing == null) {
-                bookmarkDao.insert(
-                    BookmarkEntity(
-                        bookId = bookmark.bookId,
-                        page = bookmark.page,
-                        note = bookmark.note,
-                        createdAt = bookmark.createdAt
-                    )
-                )
-            } else if (existing.note != bookmark.note) {
-                bookmarkDao.updateNote(existing.id, bookmark.note)
-            }
-        }
-
-        data.excludedFolders.forEach { excludedFolderDao.insert(ExcludedFolderEntity(it)) }
-        tagDao.pruneUnused()
     }
 
     private fun BookEntity.toBackup() = BackupBook(

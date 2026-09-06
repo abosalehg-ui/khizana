@@ -15,6 +15,13 @@ val Ink = Color(0xFF2A1F16)           // primary text
 val GoldMuted = Color(0xFFBFA13C)
 val GoldSoftMuted = Color(0xFFD4BC6E)
 
+// Gold dark enough to be a *functional* mark on parchment: 4.2:1 on the
+// background and 3.7:1 on the dimmest surface, where the identity Gold manages
+// 2.05:1 and GoldSoft only 1.43:1. Used for the drop highlight and the progress
+// bar in light mode — the things the reader has to see rather than merely
+// enjoy. WCAG 1.4.11 asks 3:1 of both.
+val GoldDeep = Color(0xFF8A6D12)
+
 // Supporting shades derived from the core palette.
 val ParchmentHigh = Color(0xFFFBF4E6) // elevated surfaces in light mode
 val ParchmentDim = Color(0xFFEADDC4)  // surface variant in light mode

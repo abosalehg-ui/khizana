@@ -58,9 +58,16 @@ class FakeBookDao : BookDao {
         path: String,
         fileName: String,
         fileSize: Long,
-        status: String
+        status: String,
+        lastModified: Long
     ) = mutate(id) {
-        it.copy(path = path, fileName = fileName, fileSize = fileSize, status = status)
+        it.copy(
+            path = path,
+            fileName = fileName,
+            fileSize = fileSize,
+            status = status,
+            lastModified = lastModified
+        )
     }
 
     override suspend fun markMissing(ids: List<String>) {
@@ -125,7 +132,8 @@ class FakeBookDao : BookDao {
         progress: Float,
         isHidden: Boolean,
         readingDirection: String,
-        lastReadAt: Long?
+        lastReadAt: Long?,
+        manualOrder: Int
     ) = mutate(id) {
         it.copy(
             topicId = topicId,
@@ -133,7 +141,8 @@ class FakeBookDao : BookDao {
             progress = progress,
             isHidden = isHidden,
             readingDirection = readingDirection,
-            lastReadAt = lastReadAt
+            lastReadAt = lastReadAt,
+            manualOrder = manualOrder
         )
     }
 }

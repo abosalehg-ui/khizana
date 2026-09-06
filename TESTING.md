@@ -27,6 +27,12 @@ Current coverage (grows with each milestone):
 | Spread building (cover alone, odd/even tails) & page<->spread mapping | `SpreadsTest` |
 | Backup JSON round-trip (nulls, Arabic, empty sections, bookmarks, a v1 file read by this v2 build) | `BackupSerializerTest` |
 | SAF tree-id -> filesystem path (primary, SD, unsupported) | `TreePathsTest` |
+| **Schema migrations**: v1 -> v3 in one hop and v2 -> v3 alone, each asserting the reading position, title, manual order, hidden flag and bookmarks all survive | `MigrationTest` |
+| **Rescan fast path**: an unchanged file keeps its id without being re-read (proved by making it unreadable first), an in-place edit is fingerprinted again, and a pre-v3 row is stamped after one slow pass | `LibraryRescanTest` |
+| Empty/slash-only excluded folders match nothing, and do not disarm real exclusions beside them | `ExcludedPathFilterTest` |
+| Share-path boundary: storage volumes yes, app-private and system paths no, and traversal is normalised before the check | `BookSharingTest` |
+| Sample-size bounded by decoded area, not width alone (the decompression-bomb aspect ratio) | `CbzCoverTest` |
+| Arabic collation: hamza forms file under alef, ta marbuta and alef maqsura fold to their plain forms | `NaturalOrderTest` |
 | Natural ordering (Arabic/Latin/Arabic-Indic digits, zeros, case) | `NaturalOrderTest` |
 | Search normalization (tashkeel, alef/ta-marbuta/maqsura variants) | `SearchTest` |
 
@@ -34,14 +40,46 @@ Known gaps, stated rather than implied:
 
 - **No Compose UI tests.** The unused `ui-test-junit4` dependency was removed
   rather than left declared and unexercised.
-- **No migration test.** `exportSchema` was off until now, so there is no v1
-  schema JSON for `MigrationTestHelper` to migrate from. From v2 onwards the
-  JSON under `app/schemas/` makes every future migration testable, and one
-  should be added with the next schema change.
+- ~~No migration test.~~ Closed. The v1 schema JSON was reconstructed by
+  re-running the annotation processor over the v1 entity shape, so its DDL and
+  identity hash are Room's own rather than hand-written; `app/schemas/` now
+  holds v1, v2 and v3 and `MigrationTest` replays every step on the JVM. The
+  schema directory is registered as a *debug* asset source — `MigrationTestHelper`
+  can only find schemas through assets, and a Robolectric test sees the merged
+  assets of the variant under test, not the test source set's own.
 - ViewModels are untested; their logic is thin and the pure parts it delegates
-  to (`buildShelves`, `normalizeForSearch`) are covered.
+  to (`buildShelves`, `normalizeForSearch`, `shelfMetricsFor`) are covered.
+- The restore test used to re-implement `applyRestore` beside the real one,
+  which is how a field the restore silently dropped still read as a passing
+  contract. The logic now lives in `BackupRestorer` — no Context, so the test
+  drives production code — and the duplicate is gone.
+
+## CI
+
+`.github/workflows/build.yml` runs on every push and pull request: debug APK,
+the unit suite (with a summary step that fails when no tests executed at all),
+the minified release APK so R8 is exercised before a release tag rather than
+during one, and lint. `dependency-submission.yml` publishes the resolved Gradle
+dependency graph for `main`, which is the baseline `dependency-review` compares
+a pull request against — GitHub does not parse Gradle build files, so without
+it the review has nothing to look at.
 
 ## Manual checklist
+
+### M10 — review fixes
+- [ ] With TalkBack on, a book cover is announced as a button ("Open <title>") and double-tapping opens it; with a keyboard attached, Tab reaches a cover and Enter opens it.
+- [ ] In the light theme, dragging a book shows a clearly visible gold outline on the shelf it would land on, and a part-read book shows a visible progress bar with a visible groove behind it.
+- [ ] Turn off storage access in system settings, then scan: an error line appears under the button instead of the shelves silently staying empty.
+- [ ] After a scan finds new books, a "generating covers" line with a live count appears and then disappears.
+- [ ] Reading a page for two minutes without touching the screen: the screen stays on. Leaving the reader: it dims normally again.
+- [ ] Rescan a large, unchanged library twice — the second run is noticeably faster than the first.
+- [ ] Edit a book file in place (append a byte), rescan: it is picked up as a new book rather than silently ignored.
+- [ ] Drag-order some books, back up, restore on the same device: the hand-made order comes back exactly.
+- [ ] Hand-edit a backup file to add `""` to `excludedFolders`, restore, scan: the library is still there.
+- [ ] "Move to shelf" now closes with a «تم» button, and picking a shelf has already moved the book.
+- [ ] A book with a password-protected or damaged file shows a lock/warning glyph beside the ribbon text.
+- [ ] Split-screen the app on a tablet: covers shrink to the compact size instead of overflowing the row.
+- [ ] Books titled «أحمد», «ابن خلدون», «إبراهيم» sort interleaved under alef, not in a clump before it.
 
 ### M9 — bookmarks, shelf sort, sharing
 - [ ] In the reader, the bookmark icon is outlined on a fresh page and filled after saving; it stays filled after leaving and reopening the book.

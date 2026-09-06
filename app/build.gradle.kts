@@ -6,6 +6,28 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+/**
+ * The version a release carries comes from the tag that triggered it.
+ *
+ * A hardcoded `versionCode = 1` meant every signed release built from every
+ * `v*` tag claimed to be the same version, and Android refuses to install a
+ * build whose versionCode does not exceed the installed one — so the second
+ * release could never be an upgrade of the first. `v1.2.3` becomes name
+ * "1.2.3" and code 10203; anything else (a local build, a branch build) stays
+ * at the development 0.1.0 / 1.
+ */
+val releaseTag: String? = (System.getenv("GITHUB_REF_NAME") ?: "")
+    .takeIf { Regex("^v\\d+\\.\\d+\\.\\d+$").matches(it) }
+
+fun khizanaVersionName(): String = releaseTag?.removePrefix("v") ?: "0.1.0"
+
+fun khizanaVersionCode(): Int {
+    val tag = releaseTag ?: return 1
+    val (major, minor, patch) = tag.removePrefix("v").split(".").map(String::toInt)
+    // Room for 100 minors and 100 patches per major, monotonic by construction.
+    return major * 10000 + minor * 100 + patch
+}
+
 android {
     namespace = "com.abosalehg.khizana"
     compileSdk = 35
@@ -14,8 +36,8 @@ android {
         applicationId = "com.abosalehg.khizana"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = khizanaVersionCode()
+        versionName = khizanaVersionName()
     }
 
     signingConfigs {
@@ -57,6 +79,18 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // MigrationTestHelper can only look the schema JSON up as an asset, and a
+    // Robolectric unit test sees the *merged* assets of the variant under test
+    // — the test source set's own assets never get there. Registering the
+    // exported schema directory on the debug variant is what lets the migration
+    // test run on the JVM in CI instead of needing an emulator; release builds
+    // never see these files, and there is only ever one copy of them on disk.
+    sourceSets {
+        getByName("debug") {
+            assets.srcDirs("$projectDir/schemas")
+        }
     }
 
     testOptions {
@@ -117,6 +151,7 @@ dependencies {
     // Real org.json for JVM unit tests (the android.jar stubs throw).
     testImplementation(libs.org.json)
     testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.junit)
     testImplementation(libs.androidx.test.core)
 

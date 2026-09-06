@@ -26,7 +26,11 @@ class CbzEngine private constructor(
             zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, bounds) }
             if (bounds.outWidth <= 0) return null
             val options = BitmapFactory.Options().apply {
-                inSampleSize = CbzCover.sampleSize(bounds.outWidth, targetWidth.coerceAtLeast(1))
+                inSampleSize = CbzCover.sampleSize(
+                    bounds.outWidth,
+                    bounds.outHeight,
+                    targetWidth.coerceAtLeast(1)
+                )
             }
             zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, options) }
         } catch (e: OutOfMemoryError) {

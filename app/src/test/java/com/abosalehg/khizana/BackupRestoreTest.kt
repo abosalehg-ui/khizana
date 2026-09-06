@@ -4,6 +4,7 @@ import com.abosalehg.khizana.data.backup.BackupBook
 import com.abosalehg.khizana.data.backup.BackupBookmark
 import com.abosalehg.khizana.data.backup.BackupData
 import com.abosalehg.khizana.data.backup.BackupRef
+import com.abosalehg.khizana.data.backup.BackupRestorer
 import com.abosalehg.khizana.data.backup.BackupSerializer
 import com.abosalehg.khizana.data.backup.BackupTag
 import com.abosalehg.khizana.data.backup.BackupTopic
@@ -20,6 +21,7 @@ import com.abosalehg.khizana.fakes.FakeBookmarkDao
 import com.abosalehg.khizana.fakes.FakeExcludedFolderDao
 import com.abosalehg.khizana.fakes.FakeTagDao
 import com.abosalehg.khizana.fakes.FakeTopicDao
+import com.abosalehg.khizana.fakes.PassThroughTransactionRunner
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -30,8 +32,8 @@ import org.junit.Test
 
 /**
  * Restore is merge-based and fingerprint-keyed. `BackupManager` itself needs a
- * ContentResolver, so the merge logic is exercised through the same DAO calls
- * it makes — the part that can silently corrupt a library.
+ * ContentResolver; `BackupRestorer` — which holds every rule that can silently
+ * corrupt a library — does not, so these run the real thing.
  */
 class BackupRestoreTest {
 
@@ -53,80 +55,29 @@ class BackupRestoreTest {
         bookmarkDao = FakeBookmarkDao()
     }
 
-    /** Mirrors BackupManager.applyRestore without its ContentResolver plumbing. */
-    private suspend fun applyRestore(data: BackupData) {
-        val topicIdMap = HashMap<Long, Long>()
-        data.topics.forEach { topic ->
-            val existing = topicDao.findByName(topic.name)
-            topicIdMap[topic.id] = existing?.id
-                ?: topicDao.insert(TopicEntity(name = topic.name, order = topic.order))
-        }
-        val tagIdMap = HashMap<Long, Long>()
-        data.tags.forEach { tag -> tagDao.getOrCreate(tag.name)?.let { tagIdMap[tag.id] = it } }
-
-        data.books.forEach { book ->
-            val mappedTopic = book.topicId?.let { topicIdMap[it] }
-            val existing = bookDao.getById(book.id)
-            if (existing != null) {
-                bookDao.applyRestoredMetadata(
-                    id = book.id,
-                    topicId = mappedTopic,
-                    locator = book.locator,
-                    progress = book.progress,
-                    isHidden = book.isHidden,
-                    readingDirection = book.readingDirection,
-                    lastReadAt = book.lastReadAt
-                )
-            } else {
-                bookDao.insert(
-                    BookEntity(
-                        id = book.id,
-                        path = "",
-                        fileName = book.fileName,
-                        format = book.format,
-                        title = book.title,
-                        topicId = mappedTopic,
-                        locator = book.locator,
-                        progress = book.progress,
-                        status = BookStatus.MISSING.name,
-                        isHidden = book.isHidden,
-                        manualOrder = book.manualOrder
-                    )
-                )
-            }
-        }
-        data.bookTags.forEach { ref ->
-            tagIdMap[ref.tagId]?.let {
-                tagDao.addRef(BookTagCrossRef(ref.bookId, it))
-            }
-        }
-        data.excludedFolders.forEach {
-            excludedDao.insert(ExcludedFolderEntity(it))
-        }
-        data.bookmarks.forEach { bookmark ->
-            val existing = bookmarkDao.findAt(bookmark.bookId, bookmark.page)
-            if (existing == null) {
-                bookmarkDao.insert(
-                    BookmarkEntity(
-                        bookId = bookmark.bookId,
-                        page = bookmark.page,
-                        note = bookmark.note,
-                        createdAt = bookmark.createdAt
-                    )
-                )
-            } else if (existing.note != bookmark.note) {
-                bookmarkDao.updateNote(existing.id, bookmark.note)
-            }
-        }
-        tagDao.pruneUnused()
-    }
+    /**
+     * The real restore path, not a copy of it: `BackupRestorer` needs no
+     * Context, so the test drives production code. The previous version of
+     * this test re-implemented the same rules alongside it, which is how a
+     * field the restore silently dropped still looked like a passing contract.
+     */
+    private suspend fun applyRestore(data: BackupData) =
+        BackupRestorer(
+            bookDao = bookDao,
+            topicDao = topicDao,
+            tagDao = tagDao,
+            excludedFolderDao = excludedDao,
+            bookmarkDao = bookmarkDao,
+            transaction = PassThroughTransactionRunner
+        ).apply(data)
 
     private fun backupBook(
         id: String,
         topicId: Long? = null,
         locator: String? = null,
         progress: Float = 0f,
-        isHidden: Boolean = false
+        isHidden: Boolean = false,
+        manualOrder: Int = 0
     ) = BackupBook(
         id = id,
         fileName = "$id.pdf",
@@ -139,7 +90,7 @@ class BackupRestoreTest {
         progress = progress,
         readingDirection = "AUTO",
         isHidden = isHidden,
-        manualOrder = 0,
+        manualOrder = manualOrder,
         fileSize = 0,
         addedAt = 0,
         lastReadAt = null
@@ -290,5 +241,52 @@ class BackupRestoreTest {
         assertEquals("جديد", bookmark.note)
         // The row is the same one: only its note moved.
         assertEquals(1L, bookmark.createdAt)
+    }
+
+    @Test
+    fun restoringReinstatesTheHandMadeShelfOrderOfABookThisDeviceAlreadyHas() = runBlocking {
+        // The file carries manualOrder and the insert path applied it, but the
+        // update path did not — so restoring onto a device that already had the
+        // book quietly flattened the order the reader had arranged by hand.
+        bookDao.insert(
+            BookEntity(
+                id = idKnown,
+                path = "/books/a.pdf",
+                fileName = "a.pdf",
+                format = "PDF",
+                title = "a",
+                manualOrder = 1
+            )
+        )
+
+        applyRestore(
+            BackupData(
+                books = listOf(backupBook(idKnown, manualOrder = 9)),
+                topics = emptyList(),
+                tags = emptyList(),
+                bookTags = emptyList(),
+                excludedFolders = emptyList()
+            )
+        )
+
+        assertEquals(9, bookDao.getById(idKnown)!!.manualOrder)
+    }
+
+    @Test
+    fun aTagReferenceForABookNobodyHasIsNotWritten() = runBlocking {
+        // Belt behind the serializer: nothing may create a book_tags row that
+        // points at a book neither on the device nor in the file, because no
+        // cleanup path would ever reach it again.
+        applyRestore(
+            BackupData(
+                books = emptyList(),
+                topics = emptyList(),
+                tags = listOf(BackupTag(1, "فقه")),
+                bookTags = listOf(BackupRef(idUnknown, 1)),
+                excludedFolders = emptyList()
+            )
+        )
+
+        assertEquals(emptyList<BookTagCrossRef>(), tagDao.observeAllRefs().first())
     }
 }

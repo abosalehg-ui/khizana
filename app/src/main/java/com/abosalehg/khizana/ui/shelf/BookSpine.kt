@@ -3,11 +3,14 @@ package com.abosalehg.khizana.ui.shelf
 import android.content.ClipData
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.dragAndDropSource
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,7 +20,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -35,17 +40,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draganddrop.DragAndDropTransferData
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.abosalehg.khizana.R
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.BookStatus
 import com.abosalehg.khizana.ui.theme.LocalWoodTokens
-import java.io.File
 
 /**
  * One book standing on a shelf.
@@ -72,6 +75,7 @@ internal fun BookSpine(
     var menuOpen by remember { mutableStateOf(false) }
     var hovered by remember { mutableStateOf(false) }
     val tokens = LocalWoodTokens.current
+    val openLabel = stringResource(R.string.action_open_book, book.title)
 
     Column(
         modifier = Modifier
@@ -85,11 +89,7 @@ internal fun BookSpine(
                     )
                 } else Modifier
             )
-            .then(
-                if (hovered) {
-                    Modifier.border(2.dp, tokens.goldSoft, RoundedCornerShape(4.dp))
-                } else Modifier
-            ),
+            .dropHighlight(hovered, radius = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         val coverModifier = Modifier
@@ -99,39 +99,29 @@ internal fun BookSpine(
 
         Box {
             Box(
-                modifier = Modifier.dragAndDropSource {
-                    detectTapGestures(
-                        onTap = { onOpen() },
-                        onLongPress = {
-                            startTransfer(
-                                DragAndDropTransferData(
-                                    ClipData.newPlainText("bookId", book.id)
+                // Opening a book is the whole point of this screen, so it is a
+                // real click, not a raw pointer gesture: `clickable` is what
+                // puts it in the semantics tree, gives it a Button role, makes
+                // it focusable and activatable from a keyboard, and draws the
+                // ripple. `detectTapGestures` did none of that, which left
+                // TalkBack and keyboard users able to move, share and delete a
+                // book from the overflow menu — but never to read one.
+                // The long press stays on the drag source, where it belongs.
+                modifier = Modifier
+                    .dragAndDropSource {
+                        detectTapGestures(
+                            onLongPress = {
+                                startTransfer(
+                                    DragAndDropTransferData(
+                                        ClipData.newPlainText("bookId", book.id)
+                                    )
                                 )
-                            )
-                        }
-                    )
-                }
-            ) {
-                if (book.coverPath != null) {
-                    AsyncImage(
-                        model = File(book.coverPath),
-                        contentDescription = book.title,
-                        contentScale = ContentScale.Crop,
-                        modifier = coverModifier
-                    )
-                } else {
-                    Box(
-                        modifier = coverModifier
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = book.title.take(1),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            }
                         )
                     }
-                }
+                    .clickable(onClickLabel = openLabel, onClick = onOpen)
+            ) {
+                BookCover(book = book, modifier = coverModifier)
                 StatusRibbon(
                     status = book.status,
                     modifier = Modifier
@@ -147,11 +137,11 @@ internal fun BookSpine(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.book_options),
+                    contentDescription = stringResource(R.string.book_options, book.title),
                     tint = Color.White,
                     modifier = Modifier
                         .size(28.dp)
-                        .background(Color(0x99000000), CircleShape)
+                        .background(tokens.coverScrim, CircleShape)
                         .padding(5.dp)
                 )
             }
@@ -208,8 +198,11 @@ internal fun BookSpine(
             if (book.progress > 0f) {
                 LinearProgressIndicator(
                     progress = { book.progress },
-                    color = tokens.gold,
-                    trackColor = Color.Transparent,
+                    color = tokens.progressFill,
+                    // A visible groove: without one there is nothing to read the
+                    // filled part against, so "a third of the way in" and "all
+                    // but done" looked alike.
+                    trackColor = tokens.progressTrack,
                     modifier = Modifier.fillMaxSize()
                 )
             }
@@ -231,23 +224,42 @@ internal fun BookSpine(
 /**
  * Protected/damaged marker, drawn as a ribbon across the bottom of the cover
  * instead of a fourth row under it.
+ *
+ * The glyph is not decoration: colour alone is not a usable signal, and the
+ * ribbon is small enough that its red reads as "some badge" long before it
+ * reads as "something is wrong".
  */
 @Composable
 private fun StatusRibbon(status: BookStatus, modifier: Modifier = Modifier) {
-    val label = when (status) {
-        BookStatus.PROTECTED -> stringResource(R.string.status_protected)
-        BookStatus.CORRUPT -> stringResource(R.string.status_corrupt)
+    val labelRes = when (status) {
+        BookStatus.PROTECTED -> R.string.status_protected
+        BookStatus.CORRUPT -> R.string.status_corrupt
         else -> return
     }
-    Text(
-        text = label,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onError,
-        textAlign = TextAlign.Center,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
+    val glyph: ImageVector =
+        if (status == BookStatus.PROTECTED) Icons.Default.Lock else Icons.Default.Warning
+    val label = stringResource(labelRes)
+    Row(
         modifier = modifier
             .background(MaterialTheme.colorScheme.error)
-            .padding(horizontal = 2.dp, vertical = 1.dp)
-    )
+            .padding(horizontal = 2.dp, vertical = 1.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = glyph,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onError,
+            modifier = Modifier.size(10.dp)
+        )
+        Spacer(Modifier.width(2.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onError,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
 }

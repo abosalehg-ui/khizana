@@ -1,5 +1,6 @@
 package com.abosalehg.khizana.data.backup
 
+import com.abosalehg.khizana.data.scanner.FileFingerprint
 import com.abosalehg.khizana.domain.model.MAX_NOTE_LENGTH
 import org.json.JSONArray
 import org.json.JSONException
@@ -68,10 +69,15 @@ object BackupSerializer {
      */
     const val FORMAT_VERSION = 2
 
-    /** Largest backup we will read into memory (see BackupManager.importFrom). */
-    const val MAX_BACKUP_BYTES = 32 * 1024 * 1024
-
-    private val FINGERPRINT = Regex("^[0-9a-f]{64}$")
+    /**
+     * Largest backup we will read into memory (see BackupManager.importFrom).
+     *
+     * A real library of several thousand books serializes to two or three
+     * megabytes, so 8 MB is generous for anything this app writes. The cap is
+     * not about disk: the whole restore runs inside one transaction, and an
+     * absurdly large file would hold the database locked while it applied.
+     */
+    const val MAX_BACKUP_BYTES = 8 * 1024 * 1024
 
     fun toJson(data: BackupData): String {
         val root = JSONObject()
@@ -145,7 +151,7 @@ object BackupSerializer {
         }
         val books = root.optJSONArray("books").orEmpty().mapObjects { o ->
             val id = o.optString("id")
-            if (!FINGERPRINT.matches(id)) {
+            if (!FileFingerprint.isValidId(id)) {
                 throw BackupFormatException("Book id is not a content fingerprint")
             }
             BackupBook(
@@ -173,15 +179,23 @@ object BackupSerializer {
             BackupTag(o.getLong("id"), o.getString("name"))
         }
         val refs = root.optJSONArray("bookTags").orEmpty().mapObjects { o ->
-            BackupRef(o.getString("bookId"), o.getLong("tagId"))
+            val bookId = o.optString("bookId")
+            // Same rule as books and bookmarks. `book_tags` has no foreign key,
+            // so a reference to a book that cannot exist would sit there for
+            // good — and `pruneUnused` keeps a tag alive for exactly that kind
+            // of row, leaving a tag in the filter row with no book behind it.
+            if (!FileFingerprint.isValidId(bookId)) {
+                throw BackupFormatException("Tag reference book id is not a content fingerprint")
+            }
+            BackupRef(bookId, o.getLong("tagId"))
         }
         val excluded = root.optJSONArray("excludedFolders").orEmpty().let { arr ->
             (0 until arr.length()).map { arr.getString(it) }
-        }
+        }.filter(::isUsableExclusion)
         val bookmarks = root.optJSONArray("bookmarks").orEmpty().mapObjects { o ->
             val bookId = o.optString("bookId")
             // Same rule as book ids: it is a fingerprint or it is not ours.
-            if (!FINGERPRINT.matches(bookId)) {
+            if (!FileFingerprint.isValidId(bookId)) {
                 throw BackupFormatException("Bookmark book id is not a content fingerprint")
             }
             BackupBookmark(
@@ -193,6 +207,18 @@ object BackupSerializer {
         }
         return BackupData(books, topics, tags, refs, excluded, bookmarks)
     }
+
+    /**
+     * An exclusion is only meaningful as an absolute path to a real folder.
+     *
+     * A blank entry — or one made of nothing but slashes — collapses to the
+     * empty prefix, which matches every absolute path on the device: one such
+     * row in a hand-edited backup would hide the reader's whole library behind
+     * a scan that "succeeded" with zero files. Dropping it here is quieter than
+     * rejecting the file, because the entry carries no information to lose.
+     */
+    private fun isUsableExclusion(path: String): Boolean =
+        path.startsWith("/") && path.trimEnd('/').isNotEmpty()
 
     private fun JSONArray?.orEmpty(): JSONArray = this ?: JSONArray()
 

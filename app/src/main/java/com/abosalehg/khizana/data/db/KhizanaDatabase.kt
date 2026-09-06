@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         BookmarkEntity::class,
         ExcludedFolderEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class KhizanaDatabase : RoomDatabase() {
@@ -39,6 +39,23 @@ abstract class KhizanaDatabase : RoomDatabase() {
                         "ON `books` (`isHidden`, `status`)"
                 )
                 db.execSQL("CREATE INDEX IF NOT EXISTS `index_books_addedAt` ON `books` (`addedAt`)")
+            }
+        }
+
+        /**
+         * v2 → v3: adds `books.lastModified`, the rescan fast path's third
+         * signal beside path and size.
+         *
+         * Existing rows default to 0, which no real mtime equals, so every
+         * book is fingerprinted once more on the next scan and then carries
+         * its mtime from there on. Backfilling was not an option — the
+         * database cannot stat the filesystem.
+         */
+        val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `books` ADD COLUMN `lastModified` INTEGER NOT NULL DEFAULT 0"
+                )
             }
         }
     }

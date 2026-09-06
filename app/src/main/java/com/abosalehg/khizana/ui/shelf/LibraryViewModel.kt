@@ -14,6 +14,7 @@ import com.abosalehg.khizana.data.settings.SettingsRepository
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.ShelfSort
 import com.abosalehg.khizana.util.normalizeForSearch
+import com.abosalehg.khizana.work.CoverWorker
 import com.abosalehg.khizana.work.ScanWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,7 +41,22 @@ data class ScanUiState(
     val lastScanned: Int? = null,
     val lastAdded: Int = 0,
     val lastRelocated: Int = 0,
-    val lastMissing: Int = 0
+    val lastMissing: Int = 0,
+    /**
+     * The last scan ended in [WorkInfo.State.FAILED].
+     *
+     * It needs its own flag: without one, a failed scan collapsed onto the
+     * default state, which is also "no scan has ever run" — so the reader was
+     * shown an empty library and no reason for it.
+     */
+    val failed: Boolean = false
+)
+
+/** Cover generation, which runs on its own after every scan. */
+data class CoverUiState(
+    val running: Boolean = false,
+    val processed: Int = 0,
+    val total: Int = 0
 )
 
 /**
@@ -167,6 +183,17 @@ class LibraryViewModel @Inject constructor(
         .map { infos -> infos.firstOrNull().toUiState() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ScanUiState())
 
+    /**
+     * Cover generation reports progress the same way the scan does, and until
+     * something collected it nobody saw it: after a scan the shelves filled
+     * with grey placeholders that turned into covers minutes later, with no
+     * indication that anything was working.
+     */
+    val coverState: StateFlow<CoverUiState> = workManager
+        .getWorkInfosForUniqueWorkFlow(CoverWorker.UNIQUE_NAME)
+        .map { infos -> infos.firstOrNull().toCoverUiState() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CoverUiState())
+
     /** Called from the UI on resume — the grant happens in system settings. */
     fun refreshPermission() {
         _permissionGranted.value = StoragePermission.isGranted(context)
@@ -269,7 +296,20 @@ class LibraryViewModel @Inject constructor(
                 lastRelocated = outputData.getInt(ScanWorker.KEY_RELOCATED, 0),
                 lastMissing = outputData.getInt(ScanWorker.KEY_MISSING, 0)
             )
+            WorkInfo.State.FAILED -> ScanUiState(failed = true)
             else -> ScanUiState()
+        }
+    }
+
+    private fun WorkInfo?.toCoverUiState(): CoverUiState {
+        if (this == null) return CoverUiState()
+        return when (state) {
+            WorkInfo.State.RUNNING, WorkInfo.State.ENQUEUED -> CoverUiState(
+                running = true,
+                processed = progress.getInt(CoverWorker.KEY_PROCESSED, 0),
+                total = progress.getInt(CoverWorker.KEY_TOTAL, 0)
+            )
+            else -> CoverUiState()
         }
     }
 

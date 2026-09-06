@@ -64,9 +64,37 @@ class CbzCoverTest {
 
     @Test
     fun `sample size downsamples large sources but never below target`() {
-        assertEquals(1, CbzCover.sampleSize(500, 480))
-        assertEquals(2, CbzCover.sampleSize(1000, 480))
-        assertEquals(4, CbzCover.sampleSize(2000, 480))
-        assertEquals(1, CbzCover.sampleSize(300, 480))
+        // Page-shaped sources: 2:3, so the area test never binds and the
+        // result is decided by width alone, exactly as before.
+        assertEquals(1, CbzCover.sampleSize(500, 750, 480))
+        assertEquals(2, CbzCover.sampleSize(1000, 1500, 480))
+        assertEquals(4, CbzCover.sampleSize(2000, 3000, 480))
+        assertEquals(1, CbzCover.sampleSize(300, 450, 480))
+    }
+
+    @Test
+    fun `a source narrower than the target but absurdly tall is still downsampled`() {
+        // The shape a decompression bomb takes: 10 px wide, two million tall.
+        // Width alone says "sample 1" and asks the decoder for 80 GB, which
+        // only OutOfMemoryError stops — and only after the damage.
+        val sample = CbzCover.sampleSize(10, 2_000_000, 480)
+        assertTrue("expected downsampling, got $sample", sample > 1)
+        val decodedPixels = (10L / sample) * (2_000_000L / sample)
+        assertTrue("still $decodedPixels pixels", decodedPixels <= 480L * 480 * 3)
+    }
+
+    @Test
+    fun `a wide-and-tall source is bounded by area, not just width`() {
+        val sample = CbzCover.sampleSize(4000, 60_000, 480)
+        val decodedPixels = (4000L / sample) * (60_000L / sample)
+        assertTrue("still $decodedPixels pixels", decodedPixels <= 480L * 480 * 3)
+    }
+
+    @Test
+    fun `an unreadable header falls back to the width-only rule`() {
+        // outHeight is 0 when the decoder could not read the bounds; the area
+        // test must not divide by it or reject the page outright.
+        assertEquals(2, CbzCover.sampleSize(1000, 0, 480))
+        assertEquals(1, CbzCover.sampleSize(0, 0, 480))
     }
 }

@@ -176,4 +176,64 @@ class LibraryRescanTest {
         assertTrue("progress should be throttled", updates.size < 120)
         assertEquals(120 to 120, updates.last())
     }
+
+    @Test
+    fun anUnchangedFileKeepsItsIdentityWithoutBeingReadAgain() = runBlocking {
+        // The fast path: same path, same size, same mtime. Proven by making the
+        // file unreadable after the first scan — fingerprinting it again would
+        // throw and the book would be marked MISSING, so a row that survives
+        // in place is a row that was never re-read.
+        val file = pdf("tarikh.pdf", "المحتوى الأول")
+        found(file)
+        repository.rescan()
+        val id = bookDao.snapshot().single().id
+
+        val stamp = file.lastModified()
+        assertTrue("could not make the file unreadable", file.setReadable(false, false))
+        try {
+            val report = repository.rescan()
+            assertEquals(0, report.missing)
+            assertEquals(0, report.added)
+            val row = bookDao.snapshot().single()
+            assertEquals(id, row.id)
+            assertEquals(stamp, row.lastModified)
+        } finally {
+            file.setReadable(true, true)
+        }
+    }
+
+    @Test
+    fun aFileEditedInPlaceIsFingerprintedAgain() = runBlocking {
+        // Same path, but a new mtime: the fast path must not claim it is the
+        // same book, because the bytes decide identity, not the location.
+        val file = pdf("book.pdf", "المحتوى الأول")
+        found(file)
+        repository.rescan()
+        val firstId = bookDao.snapshot().single().id
+
+        file.writeText("محتوى مختلف تماماً ولا يشبه الأول")
+        assertTrue(file.setLastModified(file.lastModified() + 10_000L))
+        repository.rescan()
+
+        val ids = bookDao.snapshot().map { it.id }.toSet()
+        assertTrue("expected a new fingerprint alongside the old row", firstId in ids)
+        assertEquals(2, ids.size)
+    }
+
+    @Test
+    fun aRowFromBeforeTheColumnExistedIsFingerprintedOnceAndThenStamped() = runBlocking {
+        // Migrated rows carry lastModified = 0, which no real file matches, so
+        // they take the slow path exactly once and are stamped on the way out.
+        val file = pdf("legacy.pdf", "كتاب قديم")
+        found(file)
+        repository.rescan()
+        val id = bookDao.snapshot().single().id
+        bookDao.updateLocation(id, file.absolutePath, file.name, file.length(), "OK", 0L)
+        assertEquals(0L, bookDao.getById(id)!!.lastModified)
+
+        repository.rescan()
+
+        assertEquals(file.lastModified(), bookDao.getById(id)!!.lastModified)
+        assertEquals(1, bookDao.snapshot().size)
+    }
 }

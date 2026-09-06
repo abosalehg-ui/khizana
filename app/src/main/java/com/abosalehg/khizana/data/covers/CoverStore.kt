@@ -2,6 +2,7 @@ package com.abosalehg.khizana.data.covers
 
 import android.graphics.Bitmap
 import android.util.Log
+import com.abosalehg.khizana.data.scanner.FileFingerprint
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -24,7 +25,7 @@ class CoverStore @Inject constructor(
      * bare fingerprint keeps `../` out of the path we are about to build.
      */
     fun fileFor(bookId: String): File? =
-        if (FINGERPRINT.matches(bookId)) File(dir, "$bookId.jpg") else null
+        if (FileFingerprint.isValidId(bookId)) File(dir, "$bookId.jpg") else null
 
     /** Atomic save: write to a temp file, then rename over the target. */
     fun save(bookId: String, bitmap: Bitmap): File? {
@@ -55,6 +56,5 @@ class CoverStore @Inject constructor(
 
     private companion object {
         const val TAG = "CoverStore"
-        val FINGERPRINT = Regex("^[0-9a-f]{64}$")
     }
 }
