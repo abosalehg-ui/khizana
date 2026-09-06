@@ -84,14 +84,38 @@ jobs:
           name: khizana-debug
           path: app/build/outputs/apk/debug/*.apk
 
-  # Blocks dependencies carrying known high-severity advisories.
+  # Flags dependencies carrying known high-severity advisories.
   #
-  # A real gate: no continue-on-error, so a vulnerable dependency fails the
-  # check rather than being noted in a log nobody opens. It depends on the
-  # repository's "Dependency graph" setting being on — if this check ever goes
-  # red saying "Dependency review is not supported on this repository", that
-  # setting was turned back off, and the fix is to turn it on again rather
-  # than to soften the gate.
+  # ADVISORY, and it takes two things to become a gate. Both were tried and
+  # neither is in place yet, so this is written down rather than rediscovered:
+  #
+  #   1. The dependency graph has to be on. The error the action prints —
+  #      "Dependency review is not supported on this repository" — points at
+  #      the repository's Settings -> Code security, but for a repository owned
+  #      by a user account the governing switch is the ACCOUNT one, at
+  #      https://github.com/settings/security_analysis ("Dependency graph",
+  #      which covers every repository the account owns whatever its
+  #      visibility). Enabling it repository-side alone left the API still
+  #      answering "not supported".
+  #
+  #   2. Even then it would review nothing here. GitHub's dependency graph does
+  #      not parse Gradle build files — Maven's pom.xml is read statically,
+  #      Gradle reaches the graph only through the dependency submission API —
+  #      and this project declares everything through a version catalog
+  #      (gradle/libs.versions.toml) that no static parser resolves. So a
+  #      Gradle project needs `gradle/actions/dependency-submission` running on
+  #      pushes to main before dependency review has anything to compare, or it
+  #      passes green having examined zero dependencies, which is worse than
+  #      advisory: it looks like cover.
+  #
+  # Until both hold, continue-on-error keeps a permanently-erroring check from
+  # walling off every PR — a check that is always red teaches everyone to
+  # ignore the one place a genuine advisory would appear. Remove the line only
+  # once a run's log shows the action actually comparing dependencies.
+  #
+  # continue-on-error must sit on the *step*: at job level it keeps the
+  # workflow green but the check run itself still reports failure, which is
+  # exactly the red wall it is meant to avoid.
   dependency-review:
     name: Dependency review
     if: github.event_name == 'pull_request'
@@ -102,6 +126,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           fail-on-severity: high
 

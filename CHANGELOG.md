@@ -35,14 +35,16 @@ project adheres to [Semantic Versioning](https://semver.org/).
   passed through at full size and asked the decoder for eighty gigabytes. The
   `OutOfMemoryError` catch did stop the crash, but only after a full round of
   allocation pressure, once per page. Decoded *area* is now bounded too.
-- **CI hardening.** Dependency review is a real gate rather than advisory: the
-  repository's "Dependency graph" setting is on, so the `continue-on-error`
-  that kept a permanently-failing check from walling off every PR is gone and a
-  high-severity advisory now fails the check. The keystore secret reaches the
-  decode step through the environment instead of being interpolated into a
-  shell command, and the minified release build (`assembleRelease`, R8 and
-  resource shrinking) runs on every PR — it used to be exercised for the first
-  time on a release tag.
+- **CI hardening.** The keystore secret reaches the decode step through the
+  environment instead of being interpolated into a shell command, and the
+  minified release build (`assembleRelease`, R8 and resource shrinking) runs on
+  every PR — it used to be exercised for the first time on a release tag.
+  Dependency review stays advisory, and the workflow now records exactly why:
+  the dependency graph is governed by an account-level setting rather than the
+  repository page the action's error points at, and even with it on, GitHub
+  does not parse Gradle build files, so the review would compare two empty
+  graphs. Making it a gate needs the account setting plus
+  `gradle/actions/dependency-submission`.
 - The backup size cap dropped from 32 MB to 8 MB. A real library of several
   thousand books serializes to two or three; the restore holds one transaction
   for its whole duration, so the cap is about how long the database stays
