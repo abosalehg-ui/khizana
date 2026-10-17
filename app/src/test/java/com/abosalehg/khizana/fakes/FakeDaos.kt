@@ -13,6 +13,7 @@ import com.abosalehg.khizana.data.db.TopicDao
 import com.abosalehg.khizana.data.db.TopicEntity
 import com.abosalehg.khizana.data.db.TransactionRunner
 import com.abosalehg.khizana.data.scanner.LibraryScanner
+import com.abosalehg.khizana.data.scanner.ScanResult
 import com.abosalehg.khizana.data.scanner.ScannedFile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -277,10 +278,12 @@ object PassThroughTransactionRunner : TransactionRunner {
 class FakeLibraryScanner(var files: List<ScannedFile> = emptyList()) : LibraryScanner {
     var lastDeep: Boolean? = null
     var lastExcluded: List<String>? = null
+    var complete: Boolean = true
+    var unreadableDirs: List<String> = emptyList()
 
-    override fun scan(deep: Boolean, excludedFolders: List<String>): List<ScannedFile> {
+    override fun scan(deep: Boolean, excludedFolders: List<String>): ScanResult {
         lastDeep = deep
         lastExcluded = excludedFolders
-        return files
+        return ScanResult(files, complete, unreadableDirs)
     }
 }

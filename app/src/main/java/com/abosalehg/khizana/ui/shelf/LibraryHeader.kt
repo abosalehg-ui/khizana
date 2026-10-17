@@ -146,6 +146,13 @@ internal fun ScanSection(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (scanState.incomplete) {
+            Text(
+                text = stringResource(R.string.scan_incomplete),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
     }
     // Covers are generated after the scan hands over, so this is its own line
     // rather than a branch of the scan's: the two overlap in practice.

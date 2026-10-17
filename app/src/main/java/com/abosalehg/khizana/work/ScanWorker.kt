@@ -41,7 +41,8 @@ class ScanWorker @AssistedInject constructor(
                     KEY_SCANNED to report.scanned,
                     KEY_ADDED to report.added,
                     KEY_RELOCATED to report.relocated,
-                    KEY_MISSING to report.missing
+                    KEY_MISSING to report.missing,
+                    KEY_INCOMPLETE to report.incomplete
                 )
             )
         } catch (e: Exception) {
@@ -65,5 +66,6 @@ class ScanWorker @AssistedInject constructor(
         const val KEY_ADDED = "added"
         const val KEY_RELOCATED = "relocated"
         const val KEY_MISSING = "missing"
+        const val KEY_INCOMPLETE = "incomplete"
     }
 }

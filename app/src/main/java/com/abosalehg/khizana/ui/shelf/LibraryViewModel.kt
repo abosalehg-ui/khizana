@@ -49,7 +49,9 @@ data class ScanUiState(
      * default state, which is also "no scan has ever run" — so the reader was
      * shown an empty library and no reason for it.
      */
-    val failed: Boolean = false
+    val failed: Boolean = false,
+    /** The scan finished but could not read everything; nothing was marked missing for it. */
+    val incomplete: Boolean = false
 )
 
 /** Cover generation, which runs on its own after every scan. */
@@ -298,7 +300,8 @@ class LibraryViewModel @Inject constructor(
                 lastScanned = outputData.getInt(ScanWorker.KEY_SCANNED, 0),
                 lastAdded = outputData.getInt(ScanWorker.KEY_ADDED, 0),
                 lastRelocated = outputData.getInt(ScanWorker.KEY_RELOCATED, 0),
-                lastMissing = outputData.getInt(ScanWorker.KEY_MISSING, 0)
+                lastMissing = outputData.getInt(ScanWorker.KEY_MISSING, 0),
+                incomplete = outputData.getBoolean(ScanWorker.KEY_INCOMPLETE, false)
             )
             WorkInfo.State.FAILED -> ScanUiState(failed = true)
             else -> ScanUiState()

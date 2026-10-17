@@ -13,6 +13,7 @@ import com.abosalehg.khizana.data.db.TopicDao
 import com.abosalehg.khizana.data.db.TopicEntity
 import com.abosalehg.khizana.data.db.TransactionRunner
 import com.abosalehg.khizana.data.db.getOrCreate
+import com.abosalehg.khizana.data.scanner.ExcludedPathFilter
 import com.abosalehg.khizana.data.scanner.FileFingerprint
 import com.abosalehg.khizana.data.scanner.LibraryScanner
 import com.abosalehg.khizana.domain.model.Book
@@ -36,7 +37,12 @@ data class ScanReport(
     val scanned: Int,
     val added: Int,
     val relocated: Int,
-    val missing: Int
+    val missing: Int,
+    /**
+     * Part of the storage could not be read, so some books the scan did not
+     * see were left as they were instead of being marked MISSING.
+     */
+    val incomplete: Boolean = false
 )
 
 @Singleton
@@ -212,9 +218,15 @@ class LibraryRepository @Inject constructor(
         onProgress: suspend (processed: Int, total: Int) -> Unit = { _, _ -> }
     ): ScanReport = withContext(Dispatchers.IO) {
         val excluded = excludedFolderDao.getAllPaths()
-        val found = scanner.scan(deep, excluded)
+        val result = scanner.scan(deep, excluded)
         val knownRows = bookDao.getAll()
         val known = knownRows.associateBy { it.id }
+        // Files at a path a row already holds go first. With two copies of one
+        // book (same fingerprint), the copy the library already points at
+        // keeps the row, instead of the row's path flipping between copies
+        // with whatever order the scan returned them in.
+        val knownPaths = knownRows.mapTo(HashSet()) { it.path }
+        val found = result.files.sortedBy { if (it.file.absolutePath in knownPaths) 0 else 1 }
         // Only rows that carry a real mtime can serve the fast path: 0 is what
         // every row written before schema v3 holds, and no file's mtime is 0.
         val knownByPath = if (deep) {
@@ -244,13 +256,19 @@ class LibraryRepository @Inject constructor(
                 if (existing == null) {
                     inserts += newEntity(id, scanned.format, file)
                 } else {
-                    val restoredStatus =
-                        if (existing.status == BookStatus.MISSING.name) BookStatus.OK.name
-                        else existing.status
-                    val moved = existing.path != file.absolutePath ||
-                        existing.status != restoredStatus ||
+                    val changed = existing.path != file.absolutePath ||
                         existing.fileSize != fileSize ||
                         existing.lastModified != modified
+                    val restoredStatus = when {
+                        existing.status == BookStatus.MISSING.name -> BookStatus.OK.name
+                        // A CORRUPT or PROTECTED verdict was about the file as
+                        // it was. Once it has moved or changed, it goes back to
+                        // OK for the cover generator to judge again — otherwise
+                        // a label set while a card was out stays on for good.
+                        changed -> BookStatus.OK.name
+                        else -> existing.status
+                    }
+                    val moved = changed || existing.status != restoredStatus
                     if (moved) {
                         relocations += Relocation(
                             id = id,
@@ -270,9 +288,16 @@ class LibraryRepository @Inject constructor(
             }
         }
 
-        val vanished = known.values
+        val unseen = known.values
             .filter { it.id !in seenIds && it.status != BookStatus.MISSING.name }
-            .map { it.id }
+        // Only what the scan could have seen can be declared gone.
+        val (vanishedRows, unconfirmed) = unseen.partition {
+            result.complete && !ExcludedPathFilter.isExcluded(it.path, result.unreadableDirs)
+        }
+        if (unconfirmed.isNotEmpty()) {
+            Log.w(TAG, "Scan incomplete: ${unconfirmed.size} unseen books left as they were")
+        }
+        val vanished = vanishedRows.map { it.id }
 
         inserts.chunked(WRITE_BATCH).forEach { batch ->
             transaction { batch.forEach { bookDao.insert(it) } }
@@ -294,7 +319,8 @@ class LibraryRepository @Inject constructor(
             scanned = found.size,
             added = inserts.size,
             relocated = relocations.size,
-            missing = vanished.size
+            missing = vanished.size,
+            incomplete = !result.complete || unconfirmed.isNotEmpty()
         )
     }
 
