@@ -136,6 +136,8 @@ class FakeBookDao : BookDao {
 
     override suspend fun applyRestoredMetadata(
         id: String,
+        title: String,
+        author: String?,
         topicId: Long?,
         locator: String?,
         progress: Float,
@@ -145,6 +147,8 @@ class FakeBookDao : BookDao {
         manualOrder: Int
     ) = mutate(id) {
         it.copy(
+            title = title,
+            author = author,
             topicId = topicId,
             locator = locator,
             progress = progress,

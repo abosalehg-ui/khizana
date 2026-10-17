@@ -94,7 +94,7 @@
     <string name="restore_done">Restore complete. Run a scan to re-attach files.</string>
     <string name="restore_failed">Restore failed — is this a Khizana backup file?</string>
     <string name="restore_confirm_title">Restore over current data?</string>
-    <string name="restore_confirm_message">For every book the backup knows about, its reading position, shelf and hidden flag replace what you have now — so restoring an older backup rewinds your reading progress. Shelves and tags the backup doesn’t mention are left alone.</string>
+    <string name="restore_confirm_message">For every book the backup knows about, its reading position, shelf, hidden flag and any title you edited replace what you have now — so restoring an older backup rewinds your reading progress. Shelves and tags the backup doesn’t mention are left alone.</string>
     <string name="delete_book">Delete from device</string>
     <string name="delete_book_message">“%1$s” will be permanently deleted from your device, along with its reading data. This cannot be undone.</string>
     <string name="delete_book_failed">Couldn’t delete the file.</string>

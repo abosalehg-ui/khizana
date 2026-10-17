@@ -14,6 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import kotlin.coroutines.cancellation.CancellationException
 import java.io.InputStream
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -61,6 +62,9 @@ class BackupManager @Inject constructor(
             }
             true
         } catch (e: Exception) {
+            // Cancellation is not a failed export: rethrow it, as the workers
+            // do, instead of reporting "failed" from a coroutine that is gone.
+            if (e is CancellationException) throw e
             Log.w(TAG, "Export failed", e)
             false
         }
@@ -80,6 +84,7 @@ class BackupManager @Inject constructor(
             Log.w(TAG, "Rejected backup file: ${e.message}")
             false
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             Log.w(TAG, "Restore failed", e)
             false
         }

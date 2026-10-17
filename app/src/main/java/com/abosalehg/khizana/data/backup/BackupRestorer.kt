@@ -13,6 +13,7 @@ import com.abosalehg.khizana.data.db.TopicEntity
 import com.abosalehg.khizana.data.db.TransactionRunner
 import com.abosalehg.khizana.data.db.getOrCreate
 import com.abosalehg.khizana.domain.model.BookStatus
+import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -62,8 +63,15 @@ class BackupRestorer @Inject constructor(
             val mappedTopic = book.topicId?.let { topicIdMap[it] }
             val existing = bookDao.getById(book.id)
             if (existing != null) {
+                // A title is only the reader's own when it differs from the
+                // file name it started as; an untouched one in the file must
+                // not overwrite a title edited on this device.
+                val editedTitle = book.title.trim()
+                    .takeIf { it.isNotEmpty() && it != File(book.fileName).nameWithoutExtension }
                 bookDao.applyRestoredMetadata(
                     id = book.id,
+                    title = editedTitle ?: existing.title,
+                    author = book.author ?: existing.author,
                     topicId = mappedTopic,
                     locator = book.locator,
                     progress = book.progress,
@@ -113,6 +121,10 @@ class BackupRestorer @Inject constructor(
         // device that already bookmarked the page, updates the note instead of
         // stacking a duplicate.
         data.bookmarks.forEach { bookmark ->
+            // Same belt as the tag references above: a bookmark for a book that
+            // neither the file nor this device has would never be cleaned up —
+            // `deleteForBook` only runs when a real book is deleted.
+            if (bookDao.getById(bookmark.bookId) == null) return@forEach
             val existing = bookmarkDao.findAt(bookmark.bookId, bookmark.page)
             if (existing == null) {
                 bookmarkDao.insert(
