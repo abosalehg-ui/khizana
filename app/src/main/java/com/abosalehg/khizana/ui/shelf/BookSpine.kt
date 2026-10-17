@@ -5,7 +5,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.dragAndDropSource
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -101,19 +100,11 @@ internal fun BookSpine(
         Box {
             Box(
                 // `clickable`, not a raw tap gesture: it is what makes opening a
-                // book reachable from TalkBack and the keyboard. The long press
-                // stays on the drag source.
+                // book reachable from TalkBack and the keyboard. The drag source
+                // starts its transfer on a long press by itself.
                 modifier = Modifier
-                    .dragAndDropSource {
-                        detectTapGestures(
-                            onLongPress = {
-                                startTransfer(
-                                    DragAndDropTransferData(
-                                        ClipData.newPlainText("bookId", book.id)
-                                    )
-                                )
-                            }
-                        )
+                    .dragAndDropSource { _ ->
+                        DragAndDropTransferData(ClipData.newPlainText("bookId", book.id))
                     }
                     .clickable(onClickLabel = openLabel, onClick = onOpen)
             ) {
