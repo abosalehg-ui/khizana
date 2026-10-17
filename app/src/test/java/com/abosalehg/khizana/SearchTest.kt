@@ -41,4 +41,22 @@ class SearchTest {
     fun `non-matching text does not match`() {
         assertFalse(matchesSearch("تاريخ الطبري", normalizeForSearch("فيزياء")))
     }
+
+    @Test
+    fun `dagger alef is dropped so classical spellings match`() {
+        assertTrue(matchesSearch("تفسير الرحمٰن", normalizeForSearch("الرحمن")))
+        assertTrue(matchesSearch("هٰذا كتاب", normalizeForSearch("هذا")))
+    }
+
+    @Test
+    fun `combining hamza and maddah marks are dropped`() {
+        // ا + U+0654 (hamza above) is how some sources spell أ.
+        assertEquals(normalizeForSearch("احمد"), normalizeForSearch("ا\u0654حمد"))
+    }
+
+    @Test
+    fun `hamza on waw and ya unify with the bare letter`() {
+        assertTrue(matchesSearch("المسؤولية", normalizeForSearch("المسوولية")))
+        assertTrue(matchesSearch("رسائل", normalizeForSearch("رسايل")))
+    }
 }

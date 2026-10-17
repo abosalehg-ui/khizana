@@ -57,6 +57,7 @@ internal fun ShelfSection(
     onMoveBookRequest: (Book) -> Unit,
     onShareBook: (Book) -> Unit,
     onTagBook: (Book) -> Unit,
+    onEditBook: (Book) -> Unit,
     onDeleteBook: (Book) -> Unit
 ) {
     // The synthetic Continue Reading shelf is never a drop target.
@@ -189,6 +190,7 @@ internal fun ShelfSection(
                             onMove = { onMoveBookRequest(book) },
                             onShare = { onShareBook(book) },
                             onTags = { onTagBook(book) },
+                            onEdit = { onEditBook(book) },
                             onDelete = { onDeleteBook(book) }
                         )
                     }

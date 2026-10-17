@@ -47,11 +47,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abosalehg.khizana.R
 import com.abosalehg.khizana.data.scanner.TreePaths
@@ -66,7 +66,8 @@ fun SettingsScreen(
     onOpenHidden: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
+    // Configuration-aware, unlike context.getString.
+    val resources = LocalResources.current
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
     val deepScan by viewModel.deepScanEnabled.collectAsStateWithLifecycle()
     val excludedFolders by viewModel.excludedFolders.collectAsStateWithLifecycle()
@@ -77,7 +78,7 @@ fun SettingsScreen(
     var confirmRestore by remember { mutableStateOf(false) }
 
     fun notify(resId: Int) {
-        scope.launch { snackbarHostState.showSnackbar(context.getString(resId)) }
+        scope.launch { snackbarHostState.showSnackbar(resources.getString(resId)) }
     }
 
     val folderPicker = rememberLauncherForActivityResult(

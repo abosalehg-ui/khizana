@@ -66,3 +66,22 @@ data class Book(
     val addedAt: Long,
     val lastReadAt: Long?
 )
+
+/**
+ * Longest title, author, shelf or tag name we keep. Names are re-drawn on every
+ * shelf frame and arrive from hand-editable backup files, so they are bounded
+ * the same way notes are.
+ */
+const val MAX_NAME_LENGTH = 200
+
+/**
+ * A title as the reader typed it: trimmed and bounded, and never blank — an
+ * emptied field falls back to [fallback] (the file name) rather than leaving a
+ * spine with nothing on it.
+ */
+fun normalizeTitle(raw: String, fallback: String): String =
+    raw.trim().take(MAX_NAME_LENGTH).ifEmpty { fallback.take(MAX_NAME_LENGTH) }
+
+/** An author as typed: trimmed and bounded, with blank meaning "none". */
+fun normalizeAuthor(raw: String?): String? =
+    raw?.trim()?.take(MAX_NAME_LENGTH)?.takeIf { it.isNotEmpty() }

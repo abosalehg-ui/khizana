@@ -1,6 +1,7 @@
 package com.abosalehg.khizana.reader.engine
 
 import android.graphics.Bitmap
+import com.abosalehg.khizana.domain.model.BookStatus
 import java.io.Closeable
 
 /**
@@ -27,4 +28,24 @@ sealed interface EngineOpenResult {
 
     /** The file exists but cannot be parsed. */
     data object Corrupt : EngineOpenResult
+
+    /**
+     * There is no file at the book's path: a removed SD card, a file deleted
+     * from a file manager. Kept apart from [Corrupt] on purpose — a book whose
+     * card is out is not damaged, and labelling it so stuck a red "corrupt"
+     * ribbon on a healthy file that no rescan ever took off again.
+     */
+    data object Missing : EngineOpenResult
+}
+
+/**
+ * The status a failed open leaves on the book, or null for a success. The
+ * reader and the cover generator both open books, and both must agree on
+ * what each failure means.
+ */
+fun EngineOpenResult.failureStatus(): BookStatus? = when (this) {
+    is EngineOpenResult.Success -> null
+    EngineOpenResult.Protected -> BookStatus.PROTECTED
+    EngineOpenResult.Corrupt -> BookStatus.CORRUPT
+    EngineOpenResult.Missing -> BookStatus.MISSING
 }

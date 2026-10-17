@@ -1,6 +1,7 @@
 package com.abosalehg.khizana.data.backup
 
 import com.abosalehg.khizana.data.scanner.FileFingerprint
+import com.abosalehg.khizana.domain.model.MAX_NAME_LENGTH
 import com.abosalehg.khizana.domain.model.MAX_NOTE_LENGTH
 import org.json.JSONArray
 import org.json.JSONException
@@ -156,10 +157,10 @@ object BackupSerializer {
             }
             BackupBook(
                 id = id,
-                fileName = o.optString("fileName"),
+                fileName = o.optString("fileName").take(MAX_NAME_LENGTH),
                 format = o.optString("format", "PDF"),
-                title = o.optString("title"),
-                author = o.optStringOrNull("author"),
+                title = o.optString("title").take(MAX_NAME_LENGTH),
+                author = o.optStringOrNull("author")?.take(MAX_NAME_LENGTH),
                 topicId = if (o.has("topicId") && !o.isNull("topicId")) o.getLong("topicId") else null,
                 pageCount = o.optInt("pageCount").coerceAtLeast(0),
                 locator = o.optStringOrNull("locator"),
@@ -172,11 +173,15 @@ object BackupSerializer {
                 lastReadAt = if (o.has("lastReadAt") && !o.isNull("lastReadAt")) o.getLong("lastReadAt") else null
             )
         }
+        // Names are bounded like every other string the file carries: a single
+        // seven-million-character shelf name fits inside the size cap and
+        // would be drawn on every frame of the library. A blank one names
+        // nothing; its books land on the New shelf.
         val topics = root.optJSONArray("topics").orEmpty().mapObjects { o ->
-            BackupTopic(o.getLong("id"), o.getString("name"), o.optInt("order"))
-        }
+            BackupTopic(o.getLong("id"), o.getString("name").boundedName(), o.optInt("order"))
+        }.filter { it.name.isNotEmpty() }
         val tags = root.optJSONArray("tags").orEmpty().mapObjects { o ->
-            BackupTag(o.getLong("id"), o.getString("name"))
+            BackupTag(o.getLong("id"), o.getString("name").boundedName())
         }
         val refs = root.optJSONArray("bookTags").orEmpty().mapObjects { o ->
             val bookId = o.optString("bookId")
@@ -219,6 +224,8 @@ object BackupSerializer {
      */
     private fun isUsableExclusion(path: String): Boolean =
         path.startsWith("/") && path.trimEnd('/').isNotEmpty()
+
+    private fun String.boundedName(): String = trim().take(MAX_NAME_LENGTH)
 
     private fun JSONArray?.orEmpty(): JSONArray = this ?: JSONArray()
 

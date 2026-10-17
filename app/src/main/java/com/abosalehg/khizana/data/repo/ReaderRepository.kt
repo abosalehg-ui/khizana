@@ -6,8 +6,9 @@ import com.abosalehg.khizana.data.db.BookmarkEntity
 import com.abosalehg.khizana.domain.model.Book
 import com.abosalehg.khizana.domain.model.BookStatus
 import com.abosalehg.khizana.domain.model.Bookmark
+import com.abosalehg.khizana.domain.model.ReadingDirection
 import com.abosalehg.khizana.domain.model.normalizeNote
-import com.abosalehg.khizana.reader.engine.EngineFactory
+import com.abosalehg.khizana.reader.engine.BookEngineFactory
 import com.abosalehg.khizana.reader.engine.EngineOpenResult
 import com.abosalehg.khizana.reader.readingProgress
 import kotlinx.coroutines.Dispatchers
@@ -20,17 +21,22 @@ import javax.inject.Singleton
 @Singleton
 class ReaderRepository @Inject constructor(
     private val bookDao: BookDao,
-    private val bookmarkDao: BookmarkDao
+    private val bookmarkDao: BookmarkDao,
+    private val engines: BookEngineFactory
 ) {
 
     suspend fun getBook(id: String): Book? =
         withContext(Dispatchers.IO) { bookDao.getById(id)?.toDomain() }
 
     fun openEngine(book: Book): EngineOpenResult =
-        EngineFactory.open(book.path, book.format)
+        engines.open(book.path, book.format)
 
     suspend fun markStatus(bookId: String, status: BookStatus) =
         bookDao.setStatus(bookId, status.name)
+
+    /** The reader's own choice of direction; AUTO hands it back to the title guess. */
+    suspend fun setReadingDirection(bookId: String, direction: ReadingDirection) =
+        bookDao.setReadingDirection(bookId, direction.name)
 
     suspend fun updatePageCount(bookId: String, pageCount: Int) =
         bookDao.updatePageCount(bookId, pageCount)

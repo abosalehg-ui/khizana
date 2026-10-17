@@ -8,6 +8,26 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Security
 
+- **CI actions are pinned to commit SHAs**, each with its release in a trailing
+  comment. A tag like `@v2` can be moved by whoever controls the action's
+  repository, and the release job runs with `contents: write` and the signing
+  key. Dependabot (`.github/dependabot.yml`) proposes the bumps, and now also
+  watches the Gradle version catalog: dependency review only ever looked at
+  pull requests that *change* a dependency.
+- **The decoded keystore is deleted** (`if: always()`) as soon as the signed
+  build is done, before the third-party release action runs. It used to sit on
+  the runner's disk for the rest of the job. A leaked signing key cannot be
+  revoked, and anyone holding it can ship an update that installs over every
+  user's copy.
+- **Backup files can no longer plant orphan bookmarks.** Bookmark ids were
+  checked for shape, never for existence. A hand-edited file could insert
+  rows for books that neither it nor the device had, and nothing would ever
+  delete them. Tag references already had this check; bookmarks now do too.
+- **Names in a backup file are bounded.** Titles, authors, file names, shelf
+  and tag names are cut to 200 characters (`MAX_NAME_LENGTH`). Before, a
+  seven-million-character shelf name fit inside the 8 MB cap and would be
+  drawn on every frame of the library. Blank shelf names are dropped.
+
 - **A blank excluded folder no longer hides the entire library.** `""`, `"/"`
   or any all-slashes entry trimmed to the empty prefix, and the subpath test
   then read `startsWith("/")` — true of every absolute path on the device. One
@@ -55,6 +75,23 @@ project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **Per-book reading direction**, from a menu in the reader's top bar:
+  automatic (guessed from the title, as before), right to left, or left to
+  right. The README had promised this, but nothing in the app could change
+  the direction. An Arabic book whose file name is Latin, such as
+  `scan_0042.pdf`, opened left to right with no way to fix it. The setting is
+  saved per book and was already part of the backup file.
+- **Edit a book's title and author** from its ⋮ menu. A title starts as the
+  file name, which for a downloaded book is often something like
+  `0123_tafseer-v2`. The new title feeds search, the title sort and the
+  automatic direction guess. A rescan never overwrites it, and clearing it
+  falls back to the file name. Restoring a backup carries an edited title
+  over, but a title that is still just the file name does not overwrite one
+  edited on this device.
+- **A scan that could not read everything says so.** A line under the scan
+  report explains that no book was marked missing because part of the
+  storage could not be read.
+
 - **Opening a book is finally reachable without a touchscreen.** The cover
   responded only to `detectTapGestures`, which never enters the semantics tree:
   TalkBack did not announce it as a button, and a keyboard could not focus or
@@ -83,7 +120,62 @@ project adheres to [Semantic Versioning](https://semver.org/).
   code already follows: `ui` to `data` to `domain`, and `domain` knows nothing
   about Android.
 
+### Changed
+
+- **Dependencies brought up to date:** AGP 9.4.1 (built-in Kotlin, so the
+  `kotlin-android` plugin and `kotlinOptions` are gone), Gradle 9.8.1,
+  Kotlin 2.4.21, KSP 2.3.12, Compose BOM 2026.09.00, Room 2.8.5,
+  Hilt 2.60.1, Lifecycle 2.11.0, Navigation 2.10.2, WorkManager 2.12.0,
+  Coil 3.6.3 and the test libraries. Several libraries now require
+  `compileSdk` 37. `targetSdk` stays at 35, so runtime behaviour does not
+  change. `hiltViewModel()` comes from `androidx.hilt:hilt-lifecycle-viewmodel-compose`,
+  where it moved. The drag source uses Compose's `dragAndDropSource`
+  overload, which starts on a long press by itself. Snackbar strings come
+  from `LocalResources`, which follows configuration changes, instead of
+  `context.getString`. `MigrationTest` passes on Room 2.8.
+- **Bundled fonts are subset** to the scripts the app draws. They shrink from
+  1,444 KB to 1,137 KB, mostly because Cairo carried color-layer glyphs that
+  nothing could reach. All OpenType features and Cairo's axes are kept, and
+  the fonttools command is recorded in `Type.kt`.
+- `EngineFactory` is now the injectable `BookEngineFactory`, so
+  `ReaderViewModel.openBook()` and the cover generator's status decisions are
+  covered by JVM tests. CBZ entries are decoded in one place,
+  `CbzCover.decodeEntry()`, which holds both the area bound and the
+  `OutOfMemoryError` catch. `ZoomableBox` and `PageImage` moved to
+  `ReaderPage.kt`. The reader's back button is the auto-mirrored arrow used
+  on every other screen.
+
 ### Fixed
+
+- **A removed SD card no longer files healthy books as "corrupt".** The engine
+  factory returned `Corrupt` for a file that was simply absent, so opening a
+  book while its card was out put a red "corrupt" ribbon on it. A rescan only
+  ever cleared `MISSING`, so the ribbon never came off. There is now a
+  separate `EngineOpenResult.Missing`, and the reader and the cover generator
+  share one mapping from open result to status. A CORRUPT or PROTECTED book
+  whose file has moved or changed goes back to OK, so the cover generator
+  checks it again.
+- **An incomplete scan no longer hides books.** A MediaStore query that threw
+  half-way returned what it had read so far, as a successful scan, and every
+  book it never reached was marked MISSING. This is the same failure the
+  blank-exclusion fix above addressed, from a second source. A scan now
+  reports whether it was complete, and a deep scan reports the folders it
+  could not list. Only books the scan could have seen are marked missing.
+- **Leaving Settings no longer cancels a restore.** Export and restore ran in
+  the Settings ViewModel. Pressing back mid-restore cancelled it, rolled back
+  the transaction, and `catch (Exception)` reported a cancellation as an
+  ordinary failure to a screen that was already gone. Both now run in an
+  application-wide scope through `BackupRunner`, and the "running" state lives
+  there too, so reopening Settings mid-restore still shows the buttons
+  disabled.
+- **Two copies of one book no longer swap paths between scans.** MediaStore
+  results came back in no fixed order, so the row followed whichever copy
+  came first, wrote a relocation each time, and "delete from device" removed
+  whichever copy the row pointed at that day. Results are now sorted, and a
+  file at the path the row already holds is matched first.
+- **Search finds classical spellings.** The dagger alef (U+0670) and the
+  combining maddah/hamza marks (U+0653–U+0655) are dropped, and ؤ/ئ fold onto
+  و/ي, so «الرحمن» finds «الرحمٰن». The shelf sort folds ؤ/ئ the same way.
 
 - **Restoring a backup no longer flattens the hand-made shelf order.**
   `manualOrder` was written into the backup file and applied to books the

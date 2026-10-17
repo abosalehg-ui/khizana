@@ -40,11 +40,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abosalehg.khizana.R
@@ -83,8 +84,12 @@ fun LibraryScreen(
     var bookForTags by remember { mutableStateOf<Book?>(null) }
     var bookToMove by remember { mutableStateOf<Book?>(null) }
     var bookToDelete by remember { mutableStateOf<Book?>(null) }
+    var bookToEdit by remember { mutableStateOf<Book?>(null) }
 
     val context = LocalContext.current
+    // Configuration-aware, unlike context.getString: a language switch while
+    // the screen is up must not leave snackbars in the old language.
+    val resources = LocalResources.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
@@ -154,7 +159,7 @@ fun LibraryScreen(
                         if (!ok) {
                             scope.launch {
                                 snackbarHostState.showSnackbar(
-                                    context.getString(R.string.delete_book_failed)
+                                    resources.getString(R.string.delete_book_failed)
                                 )
                             }
                         }
@@ -167,6 +172,16 @@ fun LibraryScreen(
                     Text(stringResource(R.string.action_cancel))
                 }
             }
+        )
+    }
+    bookToEdit?.let { book ->
+        EditBookDialog(
+            book = book,
+            onConfirm = { title, author ->
+                viewModel.editBookDetails(book.id, title, author)
+                bookToEdit = null
+            },
+            onDismiss = { bookToEdit = null }
         )
     }
     bookForTags?.let { book ->
@@ -186,7 +201,7 @@ fun LibraryScreen(
     fun shareBook(book: Book) {
         if (!BookSharing.share(context, book)) {
             scope.launch {
-                snackbarHostState.showSnackbar(context.getString(R.string.share_book_failed))
+                snackbarHostState.showSnackbar(resources.getString(R.string.share_book_failed))
             }
         }
     }
@@ -196,8 +211,8 @@ fun LibraryScreen(
         viewModel.hideBook(book.id)
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = context.getString(R.string.book_hidden, book.title),
-                actionLabel = context.getString(R.string.action_undo),
+                message = resources.getString(R.string.book_hidden, book.title),
+                actionLabel = resources.getString(R.string.action_undo),
                 duration = SnackbarDuration.Short
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.unhideBook(book.id)
@@ -326,6 +341,7 @@ fun LibraryScreen(
                         onMoveBookRequest = { bookToMove = it },
                         onShareBook = ::shareBook,
                         onTagBook = { bookForTags = it },
+                        onEditBook = { bookToEdit = it },
                         onDeleteBook = { bookToDelete = it }
                     )
                 }

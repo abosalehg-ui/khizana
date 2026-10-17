@@ -12,6 +12,22 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 import com.abosalehg.khizana.R
 
+/*
+ * The three bundled fonts are subset to the scripts this app draws: Latin
+ * (with extensions and combining marks), Arabic with its supplements and
+ * presentation forms, punctuation, currency and U+25CC for orphan marks. All
+ * OpenType features and Cairo's variation axes are kept. What went is math
+ * operators, super/subscripts and glyphs no cmap entry or feature reached;
+ * a character outside the subset still renders, from the system fallback.
+ * Regenerate with fonttools, from the upstream files:
+ *
+ *   pyftsubset <font>.ttf --layout-features='*' --layout-scripts='*' \
+ *     --name-IDs='*' --name-languages='*' --notdef-outline \
+ *     --unicodes="U+0000-024F,U+02B0-036F,U+0600-06FF,U+0750-077F,U+08A0-08FF,\
+ *       U+1E00-1EFF,U+2000-206F,U+20A0-20CF,U+2190-21FF,U+25CC,U+FB50-FDFF,\
+ *       U+FE70-FEFF,U+FFFD"
+ */
+
 /**
  * Amiri — headings, shelf titles, generated cover titles. Bundled locally.
  *

@@ -1,6 +1,7 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
@@ -30,7 +31,7 @@ fun khizanaVersionCode(): Int {
 
 android {
     namespace = "com.abosalehg.khizana"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.abosalehg.khizana"
@@ -73,10 +74,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
     }
@@ -89,7 +86,7 @@ android {
     // never see these files, and there is only ever one copy of them on disk.
     sourceSets {
         getByName("debug") {
-            assets.srcDirs("$projectDir/schemas")
+            assets.directories.add("$projectDir/schemas")
         }
     }
 
@@ -106,6 +103,14 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+}
+
+// AGP 9 compiles Kotlin itself (built-in Kotlin), so the target is set on
+// the Kotlin extension rather than through android.kotlinOptions.
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_17)
     }
 }
 
@@ -133,7 +138,7 @@ dependencies {
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
-    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
 
@@ -150,6 +155,7 @@ dependencies {
     testImplementation(libs.junit)
     // Real org.json for JVM unit tests (the android.jar stubs throw).
     testImplementation(libs.org.json)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.junit)

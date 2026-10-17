@@ -1,7 +1,6 @@
 package com.abosalehg.khizana.reader.engine
 
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.util.Log
 import com.abosalehg.khizana.data.covers.CbzCover
 import java.io.File
@@ -22,22 +21,7 @@ class CbzEngine private constructor(
         val name = pages.getOrNull(index) ?: return null
         return try {
             val entry = zip.getEntry(name) ?: return null
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, bounds) }
-            if (bounds.outWidth <= 0) return null
-            val options = BitmapFactory.Options().apply {
-                inSampleSize = CbzCover.sampleSize(
-                    bounds.outWidth,
-                    bounds.outHeight,
-                    targetWidth.coerceAtLeast(1)
-                )
-            }
-            zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, options) }
-        } catch (e: OutOfMemoryError) {
-            // A decompression bomb is a page we skip, not a crash: Error is not
-            // an Exception and would otherwise take the whole process down.
-            Log.w(TAG, "Out of memory decoding entry $name", e)
-            null
+            CbzCover.decodeEntry(zip, entry, targetWidth)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to decode entry $name", e)
             null

@@ -94,7 +94,7 @@
     <string name="restore_done">Restore complete. Run a scan to re-attach files.</string>
     <string name="restore_failed">Restore failed — is this a Khizana backup file?</string>
     <string name="restore_confirm_title">Restore over current data?</string>
-    <string name="restore_confirm_message">For every book the backup knows about, its reading position, shelf and hidden flag replace what you have now — so restoring an older backup rewinds your reading progress. Shelves and tags the backup doesn’t mention are left alone.</string>
+    <string name="restore_confirm_message">For every book the backup knows about, its reading position, shelf, hidden flag and any title you edited replace what you have now — so restoring an older backup rewinds your reading progress. Shelves and tags the backup doesn’t mention are left alone.</string>
     <string name="delete_book">Delete from device</string>
     <string name="delete_book_message">“%1$s” will be permanently deleted from your device, along with its reading data. This cannot be undone.</string>
     <string name="delete_book_failed">Couldn’t delete the file.</string>
@@ -106,4 +106,17 @@
     <string name="covers_progress">Generating covers… %1$s / %2$s</string>
     <string name="status_protected">Password-protected</string>
     <string name="status_corrupt">Damaged file</string>
+
+    <!-- Per-book reading direction, chosen from the reader's top bar. -->
+    <string name="reading_direction">Reading direction</string>
+    <string name="direction_auto">Automatic (from the title)</string>
+    <string name="direction_rtl">Right to left</string>
+    <string name="direction_ltr">Left to right</string>
+
+    <string name="edit_details">Edit title &amp; author</string>
+    <string name="edit_details_title">Book details</string>
+    <string name="field_title">Title</string>
+    <string name="field_author">Author (optional)</string>
+
+    <string name="scan_incomplete">Part of your storage couldn’t be read, so no book was marked missing this time. Scan again to finish.</string>
 </resources>

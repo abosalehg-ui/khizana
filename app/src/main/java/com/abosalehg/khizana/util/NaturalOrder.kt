@@ -74,6 +74,8 @@ object NaturalOrderComparator : Comparator<String> {
         'أ', 'إ', 'آ', 'ٱ' -> 'ا'   // hamza-carrying alefs fold onto plain alef
         'ة' -> 'ه'                  // ta marbuta folds onto ha
         'ى' -> 'ي'                  // alef maqsura folds onto ya
+        'ؤ' -> 'و'                  // hamza on waw folds onto waw
+        'ئ' -> 'ي'                  // hamza on ya folds onto ya
         else -> c.lowercaseChar()
     }
 

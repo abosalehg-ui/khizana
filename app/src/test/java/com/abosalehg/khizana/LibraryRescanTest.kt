@@ -236,4 +236,96 @@ class LibraryRescanTest {
         assertEquals(file.lastModified(), bookDao.getById(id)!!.lastModified)
         assertEquals(1, bookDao.snapshot().size)
     }
+
+    @Test
+    fun anIncompleteScanMarksNothingMissing() = runBlocking {
+        // A MediaStore query that threw half-way returns what it read so far.
+        // Every book it never reached used to be filed MISSING and vanish from
+        // the shelves, behind a scan that reported success.
+        val a = pdf("a.pdf", "aaa")
+        val b = pdf("b.pdf", "bbb")
+        found(a, b)
+        repository.rescan()
+
+        found(a)
+        scanner.complete = false
+        val report = repository.rescan()
+
+        assertEquals(0, report.missing)
+        assertTrue(report.incomplete)
+        assertTrue(bookDao.snapshot().all { it.status == "OK" })
+    }
+
+    @Test
+    fun anUnreadableFolderSparesOnlyTheBooksUnderIt() = runBlocking {
+        val lockedDir = temp.newFolder("locked")
+        val inLocked = pdf("inside.pdf", "inside", lockedDir)
+        val outside = pdf("outside.pdf", "outside")
+        found(inLocked, outside)
+        repository.rescan()
+
+        // Neither file is seen this time; only one sits under a folder the
+        // walk could not list.
+        found()
+        scanner.unreadableDirs = listOf(lockedDir.absolutePath)
+        val report = repository.rescan(deep = true)
+
+        assertEquals(1, report.missing)
+        assertTrue(report.incomplete)
+        val byPath = bookDao.snapshot().associateBy { it.path }
+        assertEquals("OK", byPath.getValue(inLocked.absolutePath).status)
+        assertEquals("MISSING", byPath.getValue(outside.absolutePath).status)
+    }
+
+    @Test
+    fun aCompleteScanIsNotReportedIncomplete() = runBlocking {
+        found(pdf("x.pdf", "x"))
+        assertEquals(false, repository.rescan().incomplete)
+    }
+
+    @Test
+    fun aCorruptLabelIsClearedOnceTheFileChanges() = runBlocking {
+        // The label was set while the file was unreachable (an SD card out);
+        // the file is back and touched, so it is judged again.
+        val file = pdf("book.pdf", "same")
+        found(file)
+        repository.rescan()
+        val id = bookDao.snapshot().single().id
+        bookDao.setStatus(id, "CORRUPT")
+
+        val moved = pdf("book.pdf", "same", temp.newFolder("sdcard"))
+        file.delete()
+        found(moved)
+        repository.rescan()
+
+        assertEquals("OK", bookDao.getById(id)!!.status)
+    }
+
+    @Test
+    fun anUntouchedCorruptFileKeepsItsLabel() = runBlocking {
+        val file = pdf("broken.pdf", "garbage")
+        found(file)
+        repository.rescan()
+        val id = bookDao.snapshot().single().id
+        bookDao.setStatus(id, "CORRUPT")
+
+        repository.rescan()
+
+        assertEquals("CORRUPT", bookDao.getById(id)!!.status)
+    }
+
+    @Test
+    fun withTwoCopiesTheRowKeepsTheCopyItAlreadyPointsAt() = runBlocking {
+        val first = pdf("one.pdf", "identical")
+        found(first)
+        repository.rescan()
+        val second = pdf("two.pdf", "identical", temp.newFolder("copy"))
+
+        // The scan meets the new copy first; the row must not follow it.
+        found(second, first)
+        val report = repository.rescan()
+
+        assertEquals(0, report.relocated)
+        assertEquals(first.absolutePath, bookDao.snapshot().single().path)
+    }
 }

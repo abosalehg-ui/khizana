@@ -2,6 +2,7 @@ package com.abosalehg.khizana
 
 import com.abosalehg.khizana.data.backup.BackupFormatException
 import com.abosalehg.khizana.data.backup.BackupSerializer
+import com.abosalehg.khizana.domain.model.MAX_NAME_LENGTH
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -135,5 +136,30 @@ class BackupSerializerValidationTest {
     fun aRelativeExcludedFolderIsDropped() {
         val json = """{"version":2,"excludedFolders":["Books","./Books"]}"""
         assertEquals(emptyList<String>(), BackupSerializer.fromJson(json).excludedFolders)
+    }
+
+    @Test
+    fun namesAreBoundedRatherThanStoredWhole() {
+        val huge = "ر".repeat(100_000)
+        val json = """
+            {"version":2,
+             "books":[{"id":"$validId","fileName":"$huge.pdf","format":"PDF",
+                       "title":"$huge","author":"$huge"}],
+             "topics":[{"id":1,"name":"$huge"}],
+             "tags":[{"id":1,"name":"$huge"}]}
+        """.trimIndent()
+        val data = BackupSerializer.fromJson(json)
+        val book = data.books.single()
+        assertEquals(MAX_NAME_LENGTH, book.title.length)
+        assertEquals(MAX_NAME_LENGTH, book.author!!.length)
+        assertEquals(MAX_NAME_LENGTH, book.fileName.length)
+        assertEquals(MAX_NAME_LENGTH, data.topics.single().name.length)
+        assertEquals(MAX_NAME_LENGTH, data.tags.single().name.length)
+    }
+
+    @Test
+    fun aBlankShelfNameIsDropped() {
+        val json = """{"version":2,"topics":[{"id":1,"name":"   "},{"id":2,"name":"تاريخ"}]}"""
+        assertEquals(listOf("تاريخ"), BackupSerializer.fromJson(json).topics.map { it.name })
     }
 }

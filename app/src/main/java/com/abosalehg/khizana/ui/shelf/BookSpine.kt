@@ -5,7 +5,6 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.draganddrop.dragAndDropSource
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,6 +69,7 @@ internal fun BookSpine(
     onMove: () -> Unit,
     onShare: () -> Unit,
     onTags: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -99,25 +99,12 @@ internal fun BookSpine(
 
         Box {
             Box(
-                // Opening a book is the whole point of this screen, so it is a
-                // real click, not a raw pointer gesture: `clickable` is what
-                // puts it in the semantics tree, gives it a Button role, makes
-                // it focusable and activatable from a keyboard, and draws the
-                // ripple. `detectTapGestures` did none of that, which left
-                // TalkBack and keyboard users able to move, share and delete a
-                // book from the overflow menu — but never to read one.
-                // The long press stays on the drag source, where it belongs.
+                // `clickable`, not a raw tap gesture: it is what makes opening a
+                // book reachable from TalkBack and the keyboard. The drag source
+                // starts its transfer on a long press by itself.
                 modifier = Modifier
-                    .dragAndDropSource {
-                        detectTapGestures(
-                            onLongPress = {
-                                startTransfer(
-                                    DragAndDropTransferData(
-                                        ClipData.newPlainText("bookId", book.id)
-                                    )
-                                )
-                            }
-                        )
+                    .dragAndDropSource { _ ->
+                        DragAndDropTransferData(ClipData.newPlainText("bookId", book.id))
                     }
                     .clickable(onClickLabel = openLabel, onClick = onOpen)
             ) {
@@ -146,6 +133,13 @@ internal fun BookSpine(
                 )
             }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.edit_details)) },
+                    onClick = {
+                        menuOpen = false
+                        onEdit()
+                    }
+                )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.move_to_shelf)) },
                     onClick = {

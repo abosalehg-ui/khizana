@@ -13,6 +13,7 @@ import com.abosalehg.khizana.data.db.TopicDao
 import com.abosalehg.khizana.data.db.TopicEntity
 import com.abosalehg.khizana.data.db.TransactionRunner
 import com.abosalehg.khizana.data.scanner.LibraryScanner
+import com.abosalehg.khizana.data.scanner.ScanResult
 import com.abosalehg.khizana.data.scanner.ScannedFile
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,6 +99,14 @@ class FakeBookDao : BookDao {
         lastReadAt: Long
     ) = mutate(id) { it.copy(locator = locator, progress = progress, lastReadAt = lastReadAt) }
 
+    override suspend fun setReadingDirection(id: String, direction: String) = mutate(id) {
+        it.copy(readingDirection = direction)
+    }
+
+    override suspend fun updateDetails(id: String, title: String, author: String?) = mutate(id) {
+        it.copy(title = title, author = author)
+    }
+
     override suspend fun updatePageCount(id: String, pageCount: Int) = mutate(id) {
         it.copy(pageCount = pageCount)
     }
@@ -127,6 +136,8 @@ class FakeBookDao : BookDao {
 
     override suspend fun applyRestoredMetadata(
         id: String,
+        title: String,
+        author: String?,
         topicId: Long?,
         locator: String?,
         progress: Float,
@@ -136,6 +147,8 @@ class FakeBookDao : BookDao {
         manualOrder: Int
     ) = mutate(id) {
         it.copy(
+            title = title,
+            author = author,
             topicId = topicId,
             locator = locator,
             progress = progress,
@@ -269,10 +282,12 @@ object PassThroughTransactionRunner : TransactionRunner {
 class FakeLibraryScanner(var files: List<ScannedFile> = emptyList()) : LibraryScanner {
     var lastDeep: Boolean? = null
     var lastExcluded: List<String>? = null
+    var complete: Boolean = true
+    var unreadableDirs: List<String> = emptyList()
 
-    override fun scan(deep: Boolean, excludedFolders: List<String>): List<ScannedFile> {
+    override fun scan(deep: Boolean, excludedFolders: List<String>): ScanResult {
         lastDeep = deep
         lastExcluded = excludedFolders
-        return files
+        return ScanResult(files, complete, unreadableDirs)
     }
 }

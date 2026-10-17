@@ -224,6 +224,9 @@ class BackupRestoreTest {
 
     @Test
     fun restoringTwiceEditsTheNoteInsteadOfDuplicatingTheBookmark() = runBlocking {
+        bookDao.insert(
+            BookEntity(id = idKnown, path = "/p/a.pdf", fileName = "a.pdf", format = "PDF", title = "a")
+        )
         val first = BackupData(
             books = emptyList(),
             topics = emptyList(),
@@ -288,5 +291,68 @@ class BackupRestoreTest {
         )
 
         assertEquals(emptyList<BookTagCrossRef>(), tagDao.observeAllRefs().first())
+    }
+
+    @Test
+    fun aBookmarkForABookNobodyHasIsNotWritten() = runBlocking {
+        applyRestore(
+            BackupData(
+                books = emptyList(),
+                topics = emptyList(),
+                tags = emptyList(),
+                bookTags = emptyList(),
+                excludedFolders = emptyList(),
+                bookmarks = (0 until 50).map { BackupBookmark(idUnknown, it, null, 1L) }
+            )
+        )
+
+        assertTrue(bookmarkDao.snapshot().isEmpty())
+    }
+
+    @Test
+    fun anEditedTitleInTheFileIsRestoredOntoAKnownBook() = runBlocking {
+        bookDao.insert(
+            BookEntity(id = idKnown, path = "/p/a.pdf", fileName = "a.pdf", format = "PDF", title = "a")
+        )
+
+        applyRestore(
+            BackupData(
+                books = listOf(backupBook(idKnown).copy(title = "تاريخ ابن خلدون", author = "ابن خلدون")),
+                topics = emptyList(),
+                tags = emptyList(),
+                bookTags = emptyList(),
+                excludedFolders = emptyList()
+            )
+        )
+
+        val book = bookDao.snapshot().single()
+        assertEquals("تاريخ ابن خلدون", book.title)
+        assertEquals("ابن خلدون", book.author)
+    }
+
+    @Test
+    fun anUneditedTitleInTheFileLeavesALocalEditAlone() = runBlocking {
+        bookDao.insert(
+            BookEntity(
+                id = idKnown, path = "/p/a.pdf", fileName = "a.pdf", format = "PDF",
+                title = "عنوان عدّلته على هذا الجهاز", author = "مؤلف"
+            )
+        )
+        // In the file the title is still just the file name it started as.
+        val untouched = backupBook(idKnown).copy(fileName = "scan_0042.pdf", title = "scan_0042")
+
+        applyRestore(
+            BackupData(
+                books = listOf(untouched),
+                topics = emptyList(),
+                tags = emptyList(),
+                bookTags = emptyList(),
+                excludedFolders = emptyList()
+            )
+        )
+
+        val book = bookDao.snapshot().single()
+        assertEquals("عنوان عدّلته على هذا الجهاز", book.title)
+        assertEquals("مؤلف", book.author)
     }
 }

@@ -14,12 +14,27 @@ data class ScannedFile(
 )
 
 /**
+ * What a scan saw, and how far that can be trusted.
+ *
+ * A file the scan did not see is marked MISSING — which is only right when the
+ * scan could have seen it. [complete] is false when the listing itself failed
+ * part-way (a MediaStore query that threw), and then absence proves nothing.
+ * [unreadableDirs] are folders a deep walk could not list: books under them
+ * are neither found nor lost.
+ */
+data class ScanResult(
+    val files: List<ScannedFile>,
+    val complete: Boolean = true,
+    val unreadableDirs: List<String> = emptyList()
+)
+
+/**
  * Finds book files on the device. An interface so the rescan contract in
  * `LibraryRepository` can be unit tested against a fake source of files
  * instead of a real MediaStore.
  */
 interface LibraryScanner {
-    fun scan(deep: Boolean, excludedFolders: List<String>): List<ScannedFile>
+    fun scan(deep: Boolean, excludedFolders: List<String>): ScanResult
 }
 
 /**
@@ -31,14 +46,15 @@ class MediaStoreLibraryScanner(
     private val context: Context
 ) : LibraryScanner {
 
-    override fun scan(deep: Boolean, excludedFolders: List<String>): List<ScannedFile> {
-        val files = if (deep) scanDeep(excludedFolders) else scanMediaStore(excludedFolders)
+    override fun scan(deep: Boolean, excludedFolders: List<String>): ScanResult {
+        val result = if (deep) scanDeep(excludedFolders) else scanMediaStore(excludedFolders)
         // Deduplicate by absolute path (MediaStore can hold stale duplicates).
-        return files.distinctBy { it.file.absolutePath }
+        return result.copy(files = result.files.distinctBy { it.file.absolutePath })
     }
 
-    private fun scanMediaStore(excludedFolders: List<String>): List<ScannedFile> {
+    private fun scanMediaStore(excludedFolders: List<String>): ScanResult {
         val results = mutableListOf<ScannedFile>()
+        var complete = false
         val uri = MediaStore.Files.getContentUri("external")
         @Suppress("DEPRECATION")
         val dataColumn = MediaStore.Files.FileColumns.DATA
@@ -46,22 +62,35 @@ class MediaStoreLibraryScanner(
         val args = arrayOf("%.pdf", "%.cbz")
 
         try {
-            context.contentResolver.query(uri, arrayOf(dataColumn), selection, args, null)
-                ?.use { cursor ->
-                    val dataIndex = cursor.getColumnIndexOrThrow(dataColumn)
-                    while (cursor.moveToNext()) {
-                        val path = cursor.getString(dataIndex) ?: continue
+            // Sorted, so the same library always comes back in the same order:
+            // with two copies of one book, which copy a rescan meets first
+            // must not change from one scan to the next.
+            val cursor = context.contentResolver
+                .query(uri, arrayOf(dataColumn), selection, args, "$dataColumn ASC")
+            if (cursor == null) {
+                Log.w(TAG, "MediaStore returned no cursor")
+            } else {
+                cursor.use {
+                    val dataIndex = it.getColumnIndexOrThrow(dataColumn)
+                    while (it.moveToNext()) {
+                        val path = it.getString(dataIndex) ?: continue
                         addCandidate(File(path), excludedFolders, results)
                     }
                 }
+                complete = true
+            }
         } catch (e: Exception) {
-            Log.w(TAG, "MediaStore query failed; the scan returns what it found so far", e)
+            // What was read so far is still real and gets added, but the scan
+            // is reported incomplete: the rescan must not read the books it
+            // never reached as books that are gone.
+            Log.w(TAG, "MediaStore query failed part-way", e)
         }
-        return results
+        return ScanResult(results, complete = complete)
     }
 
-    private fun scanDeep(excludedFolders: List<String>): List<ScannedFile> {
+    private fun scanDeep(excludedFolders: List<String>): ScanResult {
         val results = mutableListOf<ScannedFile>()
+        val unreadable = mutableListOf<String>()
         val root = Environment.getExternalStorageDirectory()
         root.walkTopDown()
             .onEnter { dir ->
@@ -69,9 +98,15 @@ class MediaStoreLibraryScanner(
                     !isSystemRestrictedDir(dir) &&
                     !ExcludedPathFilter.isExcluded(dir.absolutePath, excludedFolders)
             }
+            // A folder that cannot be listed is skipped by the walk without a
+            // word; remember it, so its books are not taken for missing.
+            .onFail { dir, e ->
+                Log.w(TAG, "Cannot list ${dir.absolutePath}", e)
+                unreadable += dir.absolutePath
+            }
             .filter { it.isFile }
             .forEach { addCandidate(it, excludedFolders, results) }
-        return results
+        return ScanResult(results, unreadableDirs = unreadable)
     }
 
     private fun addCandidate(

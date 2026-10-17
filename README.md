@@ -17,7 +17,8 @@
 - 🔖 إشارات مرجعية بملاحظات: إشارة واحدة لكل صفحة، تُفتح من القارئ وتنتقل بضغطة، ومحفوظة في النسخة الاحتياطية.
 - 📤 مشاركة ملف أي كتاب مع تطبيق آخر من قائمة الكتاب.
 - 🌙 وضع ليلي للواجهة (فاتح / غامق / تلقائي).
-- 🈯 واجهة عربية/إنجليزية تتبع لغة النظام، واتجاه قراءة مستقل لكل كتاب.
+- 🈯 واجهة عربية/إنجليزية تتبع لغة النظام، واتجاه قراءة مستقل لكل كتاب: تلقائي من العنوان، أو تختاره أنت من شريط القارئ.
+- ✏️ تعديل عنوان الكتاب ومؤلفه من قائمته؛ يظهر على الرف ويدخل في البحث والترتيب ولا يمحوه الفحص.
 - 💾 نسخ احتياطي واستعادة إلى ملف JSON تختاره أنت، مربوط ببصمة محتوى الملف لا بمساره.
 
 ## قيد التطوير (غير منفَّذ بعد)
@@ -60,7 +61,7 @@
 ./gradlew testDebugUnitTest
 ```
 
-يتطلب JDK 17 و Android SDK 35. الإصدارات الموقّعة تُبنى آلياً عبر GitHub Actions عند دفع وسم `v*`.
+يتطلب JDK 17 و Android SDK 37 للترجمة (الاستهداف `targetSdk` ما زال 35). الإصدارات الموقّعة تُبنى آلياً عبر GitHub Actions عند دفع وسم `v*`.
 
 > عند تغيير مخطط قاعدة البيانات: اكتب ترحيلاً (`Migration`)، وارفع ملف المخطط المولَّد في `app/schemas/`، وأضف حالة إلى `MigrationTest` — لا يوجد `fallbackToDestructiveMigration`، وتقدّم القراءة يجب ألا يضيع. تاريخ المخطط كامل من v1، والترحيلات مُختبَرة فعلياً على JVM.
 
@@ -87,7 +88,8 @@ Khizana scans your device for book files (PDF and CBZ) and lays them out on **re
 - 🔖 Bookmarks with notes: one per page, opened from the reader, jumped to with a tap, and kept in the backup file.
 - 📤 Share any book's file with another app straight from the book menu.
 - 🌙 Light / dark / follow-system theming.
-- 🈯 Arabic/English UI following the system language, with per-book reading direction.
+- 🈯 Arabic/English UI following the system language, with per-book reading direction: guessed from the title, or set from the reader's top bar.
+- ✏️ Edit a book's title and author from its menu; the title shows on the shelf, feeds search and sorting, and survives rescans.
 - 💾 Backup & restore to a JSON file you choose, keyed by content fingerprint rather than file path.
 
 ## Roadmap (not implemented yet)
@@ -130,7 +132,7 @@ The working rule: anything you want to test on the JVM lives in `domain` or behi
 ./gradlew testDebugUnitTest
 ```
 
-Requires JDK 17 and Android SDK 35. Signed releases are built automatically by GitHub Actions when a `v*` tag is pushed.
+Requires JDK 17 and Android SDK 37 to compile (`targetSdk` is still 35). Signed releases are built automatically by GitHub Actions when a `v*` tag is pushed.
 
 > When changing the database schema: write a `Migration`, commit the generated file under `app/schemas/`, and add a case to `MigrationTest`. There is no `fallbackToDestructiveMigration` — reading progress must never be dropped. The schema history is complete from v1 and every migration is exercised on the JVM.
 
