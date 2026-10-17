@@ -82,6 +82,16 @@ interface BookDao {
     )
     suspend fun saveReadingPosition(id: String, locator: String, progress: Float, lastReadAt: Long)
 
+    @Query("UPDATE books SET readingDirection = :direction WHERE id = :id")
+    suspend fun setReadingDirection(id: String, direction: String)
+
+    /**
+     * The reader's own title and author. A scan only ever sets the title on
+     * insert (from the file name), so an edit here survives every rescan.
+     */
+    @Query("UPDATE books SET title = :title, author = :author WHERE id = :id")
+    suspend fun updateDetails(id: String, title: String, author: String?)
+
     @Query("UPDATE books SET pageCount = :pageCount WHERE id = :id")
     suspend fun updatePageCount(id: String, pageCount: Int)
 

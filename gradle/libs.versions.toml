@@ -15,6 +15,7 @@ workManager = "2.10.0"
 coil = "3.0.4"
 junit = "4.13.2"
 orgJson = "20240303"
+coroutinesTest = "1.9.0"
 robolectric = "4.14.1"
 androidxJunit = "1.2.1"
 androidxTestCore = "1.6.1"
@@ -53,6 +54,8 @@ coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref 
 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+# Dispatchers.setMain, so ViewModels run on the JVM without a looper.
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 # Robolectric runs the Room/DAO tests on the JVM so CI actually executes them.
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 # MigrationTestHelper: reads the committed schema JSON and replays migrations.

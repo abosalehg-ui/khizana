@@ -2,7 +2,9 @@ package com.abosalehg.khizana.data.covers
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.util.Log
 import java.io.File
+import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 /**
@@ -47,21 +49,42 @@ object CbzCover {
         val names = zip.entries().asSequence().map { it.name }.toList()
         val coverName = pickCoverEntry(names) ?: return null
         val entry = zip.getEntry(coverName) ?: return null
-
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, bounds) }
-        if (bounds.outWidth <= 0) return null
-
-        val options = BitmapFactory.Options().apply {
-            inSampleSize = sampleSize(bounds.outWidth, bounds.outHeight, targetWidth)
-        }
-        val bitmap = zip.getInputStream(entry).use {
-            BitmapFactory.decodeStream(it, null, options)
-        } ?: return null
+        val bitmap = decodeEntry(zip, entry, targetWidth) ?: return null
         Extraction(bitmap, countImages(names))
     }
 
     data class Extraction(val cover: Bitmap, val imageCount: Int)
+
+    /**
+     * Decodes one archive entry at roughly [targetWidth], or returns null when
+     * it cannot be decoded. The single place an entry's pixels are allocated —
+     * the cover extractor and the reader engine both come through here, so the
+     * area bound in [sampleSize] and the `OutOfMemoryError` catch cannot drift
+     * apart between them.
+     */
+    fun decodeEntry(zip: ZipFile, entry: ZipEntry, targetWidth: Int): Bitmap? = try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, bounds) }
+        if (bounds.outWidth <= 0) {
+            null
+        } else {
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = sampleSize(
+                    bounds.outWidth,
+                    bounds.outHeight,
+                    targetWidth.coerceAtLeast(1)
+                )
+            }
+            zip.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, options) }
+        }
+    } catch (e: OutOfMemoryError) {
+        // Error is not an Exception: without this a decompression bomb takes
+        // the whole process down instead of failing one image.
+        Log.w(TAG, "Out of memory decoding entry ${entry.name}", e)
+        null
+    }
+
+    private const val TAG = "CbzCover"
 
     /**
      * Largest power of two that keeps the decoded width at or above the target

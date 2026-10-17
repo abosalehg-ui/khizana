@@ -98,6 +98,14 @@ class FakeBookDao : BookDao {
         lastReadAt: Long
     ) = mutate(id) { it.copy(locator = locator, progress = progress, lastReadAt = lastReadAt) }
 
+    override suspend fun setReadingDirection(id: String, direction: String) = mutate(id) {
+        it.copy(readingDirection = direction)
+    }
+
+    override suspend fun updateDetails(id: String, title: String, author: String?) = mutate(id) {
+        it.copy(title = title, author = author)
+    }
+
     override suspend fun updatePageCount(id: String, pageCount: Int) = mutate(id) {
         it.copy(pageCount = pageCount)
     }

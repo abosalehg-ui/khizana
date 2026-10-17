@@ -4,8 +4,9 @@ import android.util.Log
 import com.abosalehg.khizana.data.db.BookDao
 import com.abosalehg.khizana.domain.model.BookFormat
 import com.abosalehg.khizana.domain.model.BookStatus
+import com.abosalehg.khizana.reader.engine.BookEngineFactory
 import com.abosalehg.khizana.reader.engine.EngineOpenResult
-import com.abosalehg.khizana.reader.engine.PdfEngine
+import com.abosalehg.khizana.reader.engine.failureStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -20,7 +21,8 @@ import javax.inject.Singleton
 @Singleton
 class CoverGenerator @Inject constructor(
     private val bookDao: BookDao,
-    private val coverStore: CoverStore
+    private val coverStore: CoverStore,
+    private val engines: BookEngineFactory
 ) {
 
     suspend fun generateMissing(
@@ -28,17 +30,24 @@ class CoverGenerator @Inject constructor(
     ): Unit = withContext(Dispatchers.IO) {
         val pending = bookDao.getNeedingCovers()
         pending.forEachIndexed { index, book ->
-            when (BookFormat.fromName(book.format)) {
-                BookFormat.PDF -> generatePdfCover(book.id, File(book.path))
-                BookFormat.CBZ -> generateCbzCover(book.id, File(book.path))
-                else -> bookDao.setCoverFailed(book.id)
+            val file = File(book.path)
+            when {
+                // Gone since the scan: say so, rather than letting the open
+                // below fail and file a healthy book as CORRUPT.
+                book.path.isEmpty() || !file.isFile ->
+                    bookDao.setStatus(book.id, BookStatus.MISSING.name)
+                else -> when (BookFormat.fromName(book.format)) {
+                    BookFormat.PDF -> generatePdfCover(book.id, book.path)
+                    BookFormat.CBZ -> generateCbzCover(book.id, file)
+                    else -> bookDao.setCoverFailed(book.id)
+                }
             }
             onProgress(index + 1, pending.size)
         }
     }
 
-    private suspend fun generatePdfCover(bookId: String, file: File) {
-        when (val result = PdfEngine.open(file)) {
+    private suspend fun generatePdfCover(bookId: String, path: String) {
+        when (val result = engines.open(path, BookFormat.PDF)) {
             is EngineOpenResult.Success -> result.engine.use { engine ->
                 val cover = engine.renderPage(0, COVER_WIDTH_PX)
                 if (cover == null) {
@@ -53,8 +62,7 @@ class CoverGenerator @Inject constructor(
                     }
                 }
             }
-            EngineOpenResult.Protected -> bookDao.setStatus(bookId, BookStatus.PROTECTED.name)
-            EngineOpenResult.Corrupt -> bookDao.setStatus(bookId, BookStatus.CORRUPT.name)
+            else -> result.failureStatus()?.let { bookDao.setStatus(bookId, it.name) }
         }
     }
 

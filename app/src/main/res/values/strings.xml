@@ -106,4 +106,17 @@
     <string name="covers_progress">Generating covers… %1$s / %2$s</string>
     <string name="status_protected">Password-protected</string>
     <string name="status_corrupt">Damaged file</string>
+
+    <!-- Per-book reading direction, chosen from the reader's top bar. -->
+    <string name="reading_direction">Reading direction</string>
+    <string name="direction_auto">Automatic (from the title)</string>
+    <string name="direction_rtl">Right to left</string>
+    <string name="direction_ltr">Left to right</string>
+
+    <string name="edit_details">Edit title &amp; author</string>
+    <string name="edit_details_title">Book details</string>
+    <string name="field_title">Title</string>
+    <string name="field_author">Author (optional)</string>
+
+    <string name="scan_incomplete">Part of your storage couldn’t be read, so no book was marked missing this time. Scan again to finish.</string>
 </resources>

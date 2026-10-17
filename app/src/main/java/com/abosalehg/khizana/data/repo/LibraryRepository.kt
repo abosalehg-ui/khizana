@@ -21,6 +21,8 @@ import com.abosalehg.khizana.domain.model.BookStatus
 import com.abosalehg.khizana.domain.model.ReadingDirection
 import com.abosalehg.khizana.domain.model.Tag
 import com.abosalehg.khizana.domain.model.Topic
+import com.abosalehg.khizana.domain.model.normalizeAuthor
+import com.abosalehg.khizana.domain.model.normalizeTitle
 import com.abosalehg.khizana.util.manualThenNaturalComparator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -102,6 +104,18 @@ class LibraryRepository @Inject constructor(
     suspend fun deleteTopic(topicId: Long) = transaction {
         bookDao.clearTopic(topicId)
         topicDao.delete(topicId)
+    }
+
+    /**
+     * The reader's own title and author. Titles start life as the file name,
+     * which for a downloaded book is often `0123_tafseer-v2`: this is the only
+     * way to put the real name on the spine, and it also feeds search, the
+     * title sort and the AUTO reading-direction guess.
+     */
+    suspend fun updateBookDetails(bookId: String, title: String, author: String?) {
+        val book = bookDao.getById(bookId) ?: return
+        val fallback = File(book.fileName).nameWithoutExtension.ifEmpty { book.title }
+        bookDao.updateDetails(bookId, normalizeTitle(title, fallback), normalizeAuthor(author))
     }
 
     // ---- Hidden books ----

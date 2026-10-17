@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.abosalehg.khizana.R
 import com.abosalehg.khizana.domain.model.Book
+import com.abosalehg.khizana.domain.model.MAX_NAME_LENGTH
 import com.abosalehg.khizana.domain.model.Tag
 
 @Composable
@@ -53,6 +54,48 @@ internal fun AddTopicDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) 
                 onClick = { onConfirm(name) },
                 enabled = name.isNotBlank()
             ) { Text(stringResource(R.string.action_add)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
+    )
+}
+
+/** Title and author, as the reader wants them on the spine. */
+@Composable
+internal fun EditBookDialog(
+    book: Book,
+    onConfirm: (title: String, author: String?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var title by remember(book.id) { mutableStateOf(book.title) }
+    var author by remember(book.id) { mutableStateOf(book.author.orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.edit_details_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it.take(MAX_NAME_LENGTH) },
+                    label = { Text(stringResource(R.string.field_title)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = author,
+                    onValueChange = { author = it.take(MAX_NAME_LENGTH) },
+                    label = { Text(stringResource(R.string.field_author)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(title, author) },
+                enabled = title.isNotBlank()
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }

@@ -3,6 +3,8 @@ package com.abosalehg.khizana
 import com.abosalehg.khizana.data.repo.ReaderRepository
 import com.abosalehg.khizana.fakes.FakeBookDao
 import com.abosalehg.khizana.fakes.FakeBookmarkDao
+import com.abosalehg.khizana.fakes.FakeEngineFactory
+import com.abosalehg.khizana.reader.engine.EngineOpenResult
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -25,7 +27,11 @@ class ReaderBookmarksTest {
     @Before
     fun setUp() {
         bookmarkDao = FakeBookmarkDao()
-        repository = ReaderRepository(bookDao = FakeBookDao(), bookmarkDao = bookmarkDao)
+        repository = ReaderRepository(
+            bookDao = FakeBookDao(),
+            bookmarkDao = bookmarkDao,
+            engines = FakeEngineFactory(EngineOpenResult.Corrupt)
+        )
     }
 
     @Test

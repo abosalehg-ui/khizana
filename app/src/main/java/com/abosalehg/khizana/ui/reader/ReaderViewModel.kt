@@ -12,6 +12,7 @@ import com.abosalehg.khizana.domain.model.Bookmark
 import com.abosalehg.khizana.domain.model.ReadingDirection
 import com.abosalehg.khizana.reader.engine.BookEngine
 import com.abosalehg.khizana.reader.engine.EngineOpenResult
+import com.abosalehg.khizana.reader.engine.failureStatus
 import com.abosalehg.khizana.reader.resolveReadingDirection
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +37,8 @@ sealed interface ReaderUiState {
         val book: Book,
         val pageCount: Int,
         val initialPage: Int,
+        /** What the reader chose for this book; AUTO means "guess from the title". */
+        val direction: ReadingDirection,
         val isRtl: Boolean
     ) : ReaderUiState
 
@@ -118,22 +121,38 @@ class ReaderViewModel @Inject constructor(
                         book = book,
                         pageCount = pageCount,
                         initialPage = initialPage,
-                        isRtl = resolveReadingDirection(
-                            book.readingDirection,
-                            book.title
-                        ) == ReadingDirection.RTL
+                        direction = book.readingDirection,
+                        isRtl = isRtl(book.readingDirection, book.title)
                     )
                 }
             }
-            EngineOpenResult.Protected -> {
-                repository.markStatus(bookId, BookStatus.PROTECTED)
-                ReaderUiState.Protected
-            }
-            EngineOpenResult.Corrupt -> {
-                repository.markStatus(bookId, BookStatus.CORRUPT)
-                ReaderUiState.Corrupt
-            }
+            EngineOpenResult.Protected -> fail(result, ReaderUiState.Protected)
+            EngineOpenResult.Corrupt -> fail(result, ReaderUiState.Corrupt)
+            EngineOpenResult.Missing -> fail(result, ReaderUiState.Missing)
         }
+    }
+
+    private suspend fun fail(result: EngineOpenResult, state: ReaderUiState): ReaderUiState {
+        result.failureStatus()?.let { repository.markStatus(bookId, it) }
+        return state
+    }
+
+    private fun isRtl(direction: ReadingDirection, title: String): Boolean =
+        resolveReadingDirection(direction, title) == ReadingDirection.RTL
+
+    /**
+     * The reader overrides the title guess. A book whose file name is Latin —
+     * `scan_0042.pdf` holding an Arabic text — used to open left-to-right with
+     * no way to turn it round. Persisted per book, and kept in the backup.
+     */
+    fun setReadingDirection(direction: ReadingDirection) {
+        val ready = _state.value as? ReaderUiState.Ready ?: return
+        if (ready.direction == direction) return
+        _state.value = ready.copy(
+            direction = direction,
+            isRtl = isRtl(direction, ready.book.title)
+        )
+        viewModelScope.launch { repository.setReadingDirection(bookId, direction) }
     }
 
     suspend fun renderPage(index: Int, targetWidth: Int): Bitmap? {

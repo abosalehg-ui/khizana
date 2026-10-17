@@ -1,20 +1,12 @@
 package com.abosalehg.khizana.ui.reader
 
 import android.content.res.Configuration
-import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculatePan
-import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -26,9 +18,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -36,25 +33,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
@@ -67,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abosalehg.khizana.R
+import com.abosalehg.khizana.domain.model.ReadingDirection
 import com.abosalehg.khizana.domain.model.bookmarkAt
 import com.abosalehg.khizana.reader.buildSpreads
 import com.abosalehg.khizana.reader.spreadIndexOfPage
@@ -74,9 +66,6 @@ import com.abosalehg.khizana.ui.format.formatCount
 import com.abosalehg.khizana.ui.reader.ReaderUiState.Ready
 import com.abosalehg.khizana.ui.theme.LocalWoodTokens
 import kotlin.math.roundToInt
-
-/** Highest multiple of the viewport width we will re-render a page at. */
-private const val MAX_RENDER_SCALE = 3
 
 /**
  * Reader: single-page paging in portrait, two-page spreads in landscape,
@@ -195,8 +184,14 @@ private fun ReaderContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onBack) {
-                    Text(stringResource(R.string.action_back), color = tokens.readerOnSurface)
+                IconButton(onClick = onBack) {
+                    Icon(
+                        // AutoMirrored, as on every other screen: the arrow
+                        // follows the UI language, not the book's direction.
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.action_back),
+                        tint = tokens.readerOnSurface
+                    )
                 }
                 Text(
                     text = ready.book.title,
@@ -224,6 +219,10 @@ private fun ReaderContent(
                         tint = tokens.readerOnSurface
                     )
                 }
+                DirectionMenu(
+                    current = ready.direction,
+                    onSelect = viewModel::setReadingDirection
+                )
                 IconButton(onClick = { showBookmarkList = true }) {
                     Icon(
                         imageVector = Icons.Default.Bookmarks,
@@ -362,123 +361,44 @@ private fun SeekHandler(
 }
 
 /**
- * Pinch to zoom (1x–5x), one-finger pan while zoomed, double-tap toggle.
- *
- * [content] receives a quantized render scale: zooming used to only stretch
- * the viewport-width bitmap, so a 5x zoom on a scanned page showed nothing but
- * bigger blur. Quantizing to whole steps keeps it to at most two re-renders.
+ * Reading direction for this book: the title guess, or the reader's own call.
+ * A menu rather than a cycling toggle, so the current choice is named and the
+ * screen reader announces it as a selected item.
  */
 @Composable
-private fun ZoomableBox(
-    resetKey: Any?,
-    onTap: () -> Unit,
-    content: @Composable (renderScale: Float) -> Unit
-) {
-    var scale by remember(resetKey) { mutableFloatStateOf(1f) }
-    var offset by remember(resetKey) { mutableStateOf(Offset.Zero) }
-    val renderScale = scale.roundToInt().coerceIn(1, MAX_RENDER_SCALE).toFloat()
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(resetKey) {
-                detectTapGestures(
-                    onTap = { onTap() },
-                    onDoubleTap = {
-                        scale = if (scale > 1f) 1f else 2.5f
-                        offset = Offset.Zero
+private fun DirectionMenu(current: ReadingDirection, onSelect: (ReadingDirection) -> Unit) {
+    val tokens = LocalWoodTokens.current
+    var open by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { open = true }) {
+            Icon(
+                imageVector = Icons.Default.SwapHoriz,
+                contentDescription = stringResource(R.string.reading_direction),
+                tint = tokens.readerOnSurface
+            )
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DIRECTION_CHOICES.forEach { (direction, labelRes) ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(labelRes)) },
+                    leadingIcon = {
+                        RadioButton(selected = direction == current, onClick = null)
+                    },
+                    onClick = {
+                        open = false
+                        onSelect(direction)
                     }
                 )
             }
-            .pointerInput(resetKey) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    var pressed = true
-                    while (pressed) {
-                        val event = awaitPointerEvent()
-                        val pinching = event.changes.size > 1
-                        if (pinching || scale > 1f) {
-                            scale = (scale * event.calculateZoom()).coerceIn(1f, 5f)
-                            val pan = event.calculatePan()
-                            val maxX = size.width * (scale - 1f) / 2f
-                            val maxY = size.height * (scale - 1f) / 2f
-                            offset = Offset(
-                                (offset.x + pan.x).coerceIn(-maxX, maxX),
-                                (offset.y + pan.y).coerceIn(-maxY, maxY)
-                            )
-                            // Keep the pager from paging while zoomed/pinching.
-                            event.changes.forEach { it.consume() }
-                        }
-                        pressed = event.changes.any { it.pressed }
-                    }
-                }
-            }
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offset.x
-                    translationY = offset.y
-                }
-        ) {
-            content(renderScale)
         }
     }
 }
 
-@Composable
-private fun PageImage(
-    page: Int,
-    pageCount: Int,
-    renderScale: Float,
-    render: suspend (page: Int, targetWidth: Int) -> Bitmap?,
-    modifier: Modifier = Modifier
-) {
-    val tokens = LocalWoodTokens.current
-    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
-        val baseWidth = constraints.maxWidth.coerceAtLeast(1)
-        val targetWidth = (baseWidth * renderScale).toInt()
-            .coerceIn(1, baseWidth * MAX_RENDER_SCALE)
-        var failed by remember(page) { mutableStateOf(false) }
-        // Keyed on the page only: a re-render at a higher zoom keeps showing
-        // the previous bitmap instead of flashing a spinner.
-        var bitmap by remember(page) { mutableStateOf<Bitmap?>(null) }
-        LaunchedEffect(page, targetWidth) {
-            val rendered = render(page, targetWidth)
-            if (rendered != null) {
-                bitmap = rendered
-                failed = false
-            } else if (bitmap == null) {
-                failed = true
-            }
-        }
-        val current = bitmap
-        val description = stringResource(
-            R.string.reader_page_position,
-            formatCount(page + 1),
-            formatCount(pageCount)
-        )
-        when {
-            current != null -> Image(
-                bitmap = current.asImageBitmap(),
-                contentDescription = description,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize()
-            )
-            failed -> Text(
-                text = stringResource(R.string.reader_page_failed),
-                color = tokens.readerOnSurface,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            else -> CircularProgressIndicator(
-                modifier = Modifier.semantics { contentDescription = description }
-            )
-        }
-    }
-}
+private val DIRECTION_CHOICES = listOf(
+    ReadingDirection.AUTO to R.string.direction_auto,
+    ReadingDirection.RTL to R.string.direction_rtl,
+    ReadingDirection.LTR to R.string.direction_ltr
+)
 
 @Composable
 private fun ReaderError(messageRes: Int, onBack: () -> Unit) {

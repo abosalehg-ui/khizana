@@ -83,6 +83,7 @@ fun LibraryScreen(
     var bookForTags by remember { mutableStateOf<Book?>(null) }
     var bookToMove by remember { mutableStateOf<Book?>(null) }
     var bookToDelete by remember { mutableStateOf<Book?>(null) }
+    var bookToEdit by remember { mutableStateOf<Book?>(null) }
 
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -167,6 +168,16 @@ fun LibraryScreen(
                     Text(stringResource(R.string.action_cancel))
                 }
             }
+        )
+    }
+    bookToEdit?.let { book ->
+        EditBookDialog(
+            book = book,
+            onConfirm = { title, author ->
+                viewModel.editBookDetails(book.id, title, author)
+                bookToEdit = null
+            },
+            onDismiss = { bookToEdit = null }
         )
     }
     bookForTags?.let { book ->
@@ -326,6 +337,7 @@ fun LibraryScreen(
                         onMoveBookRequest = { bookToMove = it },
                         onShareBook = ::shareBook,
                         onTagBook = { bookForTags = it },
+                        onEditBook = { bookToEdit = it },
                         onDeleteBook = { bookToDelete = it }
                     )
                 }

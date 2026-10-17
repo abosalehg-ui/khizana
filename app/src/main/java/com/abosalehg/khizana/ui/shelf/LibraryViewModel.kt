@@ -232,6 +232,10 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch { repository.deleteTopic(topicId) }
     }
 
+    fun editBookDetails(bookId: String, title: String, author: String?) {
+        viewModelScope.launch { repository.updateBookDetails(bookId, title, author) }
+    }
+
     fun hideBook(bookId: String) {
         viewModelScope.launch { repository.setBookHidden(bookId, true) }
     }

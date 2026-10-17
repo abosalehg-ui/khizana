@@ -109,4 +109,17 @@
     <string name="covers_progress">جارٍ توليد الأغلفة… %1$s / %2$s</string>
     <string name="status_protected">محمي بكلمة مرور</string>
     <string name="status_corrupt">ملف تالف</string>
+
+    <!-- اتجاه القراءة لكل كتاب، من الشريط العلوي للقارئ. -->
+    <string name="reading_direction">اتجاه القراءة</string>
+    <string name="direction_auto">تلقائي (من العنوان)</string>
+    <string name="direction_rtl">من اليمين إلى اليسار</string>
+    <string name="direction_ltr">من اليسار إلى اليمين</string>
+
+    <string name="edit_details">تعديل العنوان والمؤلف</string>
+    <string name="edit_details_title">بيانات الكتاب</string>
+    <string name="field_title">العنوان</string>
+    <string name="field_author">المؤلف (اختياري)</string>
+
+    <string name="scan_incomplete">تعذّرت قراءة جزء من التخزين، فلم يُعلَّم أي كتاب مفقوداً هذه المرة. أعد الفحص لإكماله.</string>
 </resources>

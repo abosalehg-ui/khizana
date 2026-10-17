@@ -150,6 +150,7 @@ dependencies {
     testImplementation(libs.junit)
     // Real org.json for JVM unit tests (the android.jar stubs throw).
     testImplementation(libs.org.json)
+    testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.junit)
