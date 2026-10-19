@@ -1,14 +1,16 @@
 # Keeps the SHA-pinned actions and the Gradle version catalog current.
 #
 # Dependency review in build.yml only looks at pull requests that *change*
-# dependencies; nothing was watching the versions already in place. Weekly,
+# dependencies; nothing was watching the versions already in place. Monthly,
 # grouped, so an AndroidX release train arrives as one PR rather than twenty.
+# Anything the named groups miss falls into the catch-all groups at the end
+# (majors kept separate, since they are what can break the build).
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     groups:
       actions:
         patterns: ["*"]
@@ -16,7 +18,7 @@ updates:
   - package-ecosystem: gradle
     directory: /
     schedule:
-      interval: weekly
+      interval: monthly
     open-pull-requests-limit: 5
     groups:
       androidx:
@@ -27,3 +29,9 @@ updates:
         patterns: ["com.google.dagger*"]
       testing:
         patterns: ["junit*", "org.robolectric*", "org.json*", "org.jetbrains.kotlinx:kotlinx-coroutines-test"]
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      major:
+        patterns: ["*"]
+        update-types: ["major"]
